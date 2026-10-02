@@ -27,10 +27,13 @@ import {
 } from '../utils/dto/infinity-pagination-response.dto';
 import { infinityPagination } from '../utils/infinity-pagination';
 import { FindAllClientsDto } from './dto/find-all-clients.dto';
+import { CurrentUser } from '../utils/decorators/current-user.decorator';
+import { JwtPayloadType } from '../auth/strategies/types/jwt-payload.type';
+import { CompanyMembershipGuard } from '../company-roles/company-membership.guard';
 
 @ApiTags('Clients')
 @ApiBearerAuth()
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(AuthGuard('jwt'), CompanyMembershipGuard)
 @Controller({
   path: 'clients',
   version: '1',
@@ -42,8 +45,11 @@ export class ClientsController {
   @ApiCreatedResponse({
     type: Client,
   })
-  create(@Body() createClientDto: CreateClientDto) {
-    return this.clientsService.create(createClientDto);
+  create(
+    @CurrentUser() user: JwtPayloadType,
+    @Body() createClientDto: CreateClientDto,
+  ) {
+    return this.clientsService.create(user, createClientDto);
   }
 
   @Get()
@@ -51,6 +57,7 @@ export class ClientsController {
     type: InfinityPaginationResponse(Client),
   })
   async findAll(
+    @CurrentUser() user: JwtPayloadType,
     @Query() query: FindAllClientsDto,
   ): Promise<InfinityPaginationResponseDto<Client>> {
     const page = query?.page ?? 1;
@@ -65,6 +72,7 @@ export class ClientsController {
           page,
           limit,
         },
+        currentUser: user,
       }),
       { page, limit },
     );
@@ -79,8 +87,8 @@ export class ClientsController {
   @ApiOkResponse({
     type: Client,
   })
-  findById(@Param('id') id: string) {
-    return this.clientsService.findById(id);
+  findById(@CurrentUser() user: JwtPayloadType, @Param('id') id: string) {
+    return this.clientsService.findById(id, user);
   }
 
   @Patch(':id')
@@ -92,8 +100,12 @@ export class ClientsController {
   @ApiOkResponse({
     type: Client,
   })
-  update(@Param('id') id: string, @Body() updateClientDto: UpdateClientDto) {
-    return this.clientsService.update(id, updateClientDto);
+  update(
+    @CurrentUser() user: JwtPayloadType,
+    @Param('id') id: string,
+    @Body() updateClientDto: UpdateClientDto,
+  ) {
+    return this.clientsService.update(id, user, updateClientDto);
   }
 
   @Delete(':id')
@@ -102,7 +114,7 @@ export class ClientsController {
     type: String,
     required: true,
   })
-  remove(@Param('id') id: string) {
-    return this.clientsService.remove(id);
+  remove(@CurrentUser() user: JwtPayloadType, @Param('id') id: string) {
+    return this.clientsService.remove(id, user);
   }
 }

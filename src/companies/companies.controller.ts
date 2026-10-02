@@ -27,6 +27,10 @@ import {
 } from '../utils/dto/infinity-pagination-response.dto';
 import { infinityPagination } from '../utils/infinity-pagination';
 import { FindAllCompaniesDto } from './dto/find-all-companies.dto';
+import { CurrentUser } from '../utils/decorators/current-user.decorator';
+import { JwtPayloadType } from '../auth/strategies/types/jwt-payload.type';
+import { CompanyRoles } from '../company-roles/company-roles.decorator';
+import { CompanyRolesGuard } from '../company-roles/company-roles.guard';
 
 @ApiTags('Companies')
 @ApiBearerAuth()
@@ -42,8 +46,11 @@ export class CompaniesController {
   @ApiCreatedResponse({
     type: Company,
   })
-  create(@Body() createCompanyDto: CreateCompanyDto) {
-    return this.companiesService.create(createCompanyDto);
+  create(
+    @CurrentUser() user: JwtPayloadType,
+    @Body() createCompanyDto: CreateCompanyDto,
+  ) {
+    return this.companiesService.create(user, createCompanyDto);
   }
 
   @Get()
@@ -51,6 +58,7 @@ export class CompaniesController {
     type: InfinityPaginationResponse(Company),
   })
   async findAll(
+    @CurrentUser() user: JwtPayloadType,
     @Query() query: FindAllCompaniesDto,
   ): Promise<InfinityPaginationResponseDto<Company>> {
     const page = query?.page ?? 1;
@@ -65,6 +73,7 @@ export class CompaniesController {
           page,
           limit,
         },
+        currentUser: user,
       }),
       { page, limit },
     );
@@ -79,11 +88,13 @@ export class CompaniesController {
   @ApiOkResponse({
     type: Company,
   })
-  findById(@Param('id') id: string) {
-    return this.companiesService.findById(id);
+  findById(@CurrentUser() user: JwtPayloadType, @Param('id') id: string) {
+    return this.companiesService.findById(id, user);
   }
 
   @Patch(':id')
+  @CompanyRoles('owner', 'admin')
+  @UseGuards(CompanyRolesGuard)
   @ApiParam({
     name: 'id',
     type: String,
@@ -92,17 +103,23 @@ export class CompaniesController {
   @ApiOkResponse({
     type: Company,
   })
-  update(@Param('id') id: string, @Body() updateCompanyDto: UpdateCompanyDto) {
-    return this.companiesService.update(id, updateCompanyDto);
+  update(
+    @CurrentUser() user: JwtPayloadType,
+    @Param('id') id: string,
+    @Body() updateCompanyDto: UpdateCompanyDto,
+  ) {
+    return this.companiesService.update(id, user, updateCompanyDto);
   }
 
   @Delete(':id')
+  @CompanyRoles('owner')
+  @UseGuards(CompanyRolesGuard)
   @ApiParam({
     name: 'id',
     type: String,
     required: true,
   })
-  remove(@Param('id') id: string) {
-    return this.companiesService.remove(id);
+  remove(@CurrentUser() user: JwtPayloadType, @Param('id') id: string) {
+    return this.companiesService.remove(id, user);
   }
 }

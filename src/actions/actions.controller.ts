@@ -27,10 +27,13 @@ import {
 } from '../utils/dto/infinity-pagination-response.dto';
 import { infinityPagination } from '../utils/infinity-pagination';
 import { FindAllActionsDto } from './dto/find-all-actions.dto';
+import { CurrentUser } from '../utils/decorators/current-user.decorator';
+import { JwtPayloadType } from '../auth/strategies/types/jwt-payload.type';
+import { CompanyMembershipGuard } from '../company-roles/company-membership.guard';
 
 @ApiTags('Actions')
 @ApiBearerAuth()
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(AuthGuard('jwt'), CompanyMembershipGuard)
 @Controller({
   path: 'actions',
   version: '1',
@@ -42,8 +45,11 @@ export class ActionsController {
   @ApiCreatedResponse({
     type: Action,
   })
-  create(@Body() createActionDto: CreateActionDto) {
-    return this.actionsService.create(createActionDto);
+  create(
+    @CurrentUser() user: JwtPayloadType,
+    @Body() createActionDto: CreateActionDto,
+  ) {
+    return this.actionsService.create(user, createActionDto);
   }
 
   @Get()
@@ -51,6 +57,7 @@ export class ActionsController {
     type: InfinityPaginationResponse(Action),
   })
   async findAll(
+    @CurrentUser() user: JwtPayloadType,
     @Query() query: FindAllActionsDto,
   ): Promise<InfinityPaginationResponseDto<Action>> {
     const page = query?.page ?? 1;
@@ -65,6 +72,7 @@ export class ActionsController {
           page,
           limit,
         },
+        currentUser: user,
       }),
       { page, limit },
     );
@@ -79,8 +87,8 @@ export class ActionsController {
   @ApiOkResponse({
     type: Action,
   })
-  findById(@Param('id') id: string) {
-    return this.actionsService.findById(id);
+  findById(@CurrentUser() user: JwtPayloadType, @Param('id') id: string) {
+    return this.actionsService.findById(id, user);
   }
 
   @Patch(':id')
@@ -92,8 +100,12 @@ export class ActionsController {
   @ApiOkResponse({
     type: Action,
   })
-  update(@Param('id') id: string, @Body() updateActionDto: UpdateActionDto) {
-    return this.actionsService.update(id, updateActionDto);
+  update(
+    @CurrentUser() user: JwtPayloadType,
+    @Param('id') id: string,
+    @Body() updateActionDto: UpdateActionDto,
+  ) {
+    return this.actionsService.update(id, user, updateActionDto);
   }
 
   @Delete(':id')
@@ -102,7 +114,7 @@ export class ActionsController {
     type: String,
     required: true,
   })
-  remove(@Param('id') id: string) {
-    return this.actionsService.remove(id);
+  remove(@CurrentUser() user: JwtPayloadType, @Param('id') id: string) {
+    return this.actionsService.remove(id, user);
   }
 }

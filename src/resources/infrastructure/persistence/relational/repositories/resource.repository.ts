@@ -7,6 +7,7 @@ import { Resource } from '../../../../domain/resource';
 import { ResourceRepository } from '../../resource.repository';
 import { ResourceMapper } from '../mappers/resource.mapper';
 import { IPaginationOptions } from '../../../../../utils/types/pagination-options';
+import { Company } from '../../../../../companies/domain/company';
 
 @Injectable()
 export class ResourceRelationalRepository implements ResourceRepository {
@@ -25,12 +26,15 @@ export class ResourceRelationalRepository implements ResourceRepository {
 
   async findAllWithPagination({
     paginationOptions,
+    companyId,
   }: {
     paginationOptions: IPaginationOptions;
+    companyId?: Company['id'];
   }): Promise<Resource[]> {
     const entities = await this.resourceRepository.find({
       skip: (paginationOptions.page - 1) * paginationOptions.limit,
       take: paginationOptions.limit,
+      where: companyId ? { company: { id: companyId } } : undefined,
     });
 
     return entities.map((entity) => ResourceMapper.toDomain(entity));

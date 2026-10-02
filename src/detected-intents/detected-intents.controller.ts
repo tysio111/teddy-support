@@ -27,10 +27,16 @@ import {
 } from '../utils/dto/infinity-pagination-response.dto';
 import { infinityPagination } from '../utils/infinity-pagination';
 import { FindAllDetectedIntentsDto } from './dto/find-all-detected-intents.dto';
+import { Roles } from '../roles/roles.decorator';
+import { RoleEnum } from '../roles/roles.enum';
+import { RolesGuard } from '../roles/roles.guard';
+import { CurrentUser } from '../utils/decorators/current-user.decorator';
+import { JwtPayloadType } from '../auth/strategies/types/jwt-payload.type';
 
 @ApiTags('Detectedintents')
 @ApiBearerAuth()
-@UseGuards(AuthGuard('jwt'))
+@Roles(RoleEnum.admin)
+@UseGuards(AuthGuard('jwt'), RolesGuard)
 @Controller({
   path: 'detected-intents',
   version: '1',
@@ -44,8 +50,11 @@ export class DetectedIntentsController {
   @ApiCreatedResponse({
     type: DetectedIntent,
   })
-  create(@Body() createDetectedIntentDto: CreateDetectedIntentDto) {
-    return this.detectedIntentsService.create(createDetectedIntentDto);
+  create(
+    @CurrentUser() user: JwtPayloadType,
+    @Body() createDetectedIntentDto: CreateDetectedIntentDto,
+  ) {
+    return this.detectedIntentsService.create(user, createDetectedIntentDto);
   }
 
   @Get()
@@ -95,10 +104,15 @@ export class DetectedIntentsController {
     type: DetectedIntent,
   })
   update(
+    @CurrentUser() user: JwtPayloadType,
     @Param('id') id: string,
     @Body() updateDetectedIntentDto: UpdateDetectedIntentDto,
   ) {
-    return this.detectedIntentsService.update(id, updateDetectedIntentDto);
+    return this.detectedIntentsService.update(
+      id,
+      user,
+      updateDetectedIntentDto,
+    );
   }
 
   @Delete(':id')

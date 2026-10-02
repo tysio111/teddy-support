@@ -2,12 +2,12 @@ import { FilesService } from '../files/files.service';
 import { FileType } from '../files/domain/file';
 
 import { CompaniesService } from '../companies/companies.service';
-import { Company } from '../companies/domain/company';
 
 import {
   // common
   Injectable,
   HttpStatus,
+  NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { CreateResourceDto } from './dto/create-resource.dto';
@@ -15,6 +15,8 @@ import { UpdateResourceDto } from './dto/update-resource.dto';
 import { ResourceRepository } from './infrastructure/persistence/resource.repository';
 import { IPaginationOptions } from '../utils/types/pagination-options';
 import { Resource } from './domain/resource';
+import { JwtPayloadType } from '../auth/strategies/types/jwt-payload.type';
+import { isPlatformAdmin } from '../roles/is-platform-admin.util';
 
 @Injectable()
 export class ResourcesService {
@@ -27,7 +29,10 @@ export class ResourcesService {
     private readonly resourceRepository: ResourceRepository,
   ) {}
 
-  async create(createResourceDto: CreateResourceDto) {
+  async create(
+    currentUser: JwtPayloadType,
+    createResourceDto: CreateResourceDto,
+  ) {
     // Do not remove comment below.
     // <creating-property />
 
@@ -50,8 +55,20 @@ export class ResourcesService {
       file = null;
     }
 
+    // The company is always the caller's own — a client-supplied `company`
+    // field, if any, is ignored.
+    if (!currentUser.companyId) {
+      throw new UnprocessableEntityException({
+        status: HttpStatus.UNPROCESSABLE_ENTITY,
+        errors: {
+          company: 'notExists',
+        },
+      });
+    }
+
     const companyObject = await this.companyService.findById(
-      createResourceDto.company.id,
+      currentUser.companyId,
+      currentUser,
     );
     if (!companyObject) {
       throw new UnprocessableEntityException({
@@ -84,19 +101,34 @@ export class ResourcesService {
 
   findAllWithPagination({
     paginationOptions,
+    currentUser,
   }: {
     paginationOptions: IPaginationOptions;
+    currentUser: JwtPayloadType;
   }) {
     return this.resourceRepository.findAllWithPagination({
       paginationOptions: {
         page: paginationOptions.page,
         limit: paginationOptions.limit,
       },
+      companyId: isPlatformAdmin(currentUser)
+        ? undefined
+        : (currentUser.companyId ?? undefined),
     });
   }
 
-  findById(id: Resource['id']) {
-    return this.resourceRepository.findById(id);
+  async findById(id: Resource['id'], currentUser: JwtPayloadType) {
+    const resource = await this.resourceRepository.findById(id);
+
+    if (
+      resource &&
+      !isPlatformAdmin(currentUser) &&
+      String(resource.company?.id) !== String(currentUser.companyId)
+    ) {
+      throw new NotFoundException();
+    }
+
+    return resource;
   }
 
   findByIds(ids: Resource['id'][]) {
@@ -105,11 +137,13 @@ export class ResourcesService {
 
   async update(
     id: Resource['id'],
-
+    currentUser: JwtPayloadType,
     updateResourceDto: UpdateResourceDto,
   ) {
     // Do not remove comment below.
     // <updating-property />
+
+    await this.findById(id, currentUser); // throws NotFoundException if foreign
 
     let file: FileType | null | undefined = undefined;
 
@@ -130,23 +164,7 @@ export class ResourcesService {
       file = null;
     }
 
-    let company: Company | undefined = undefined;
-
-    if (updateResourceDto.company) {
-      const companyObject = await this.companyService.findById(
-        updateResourceDto.company.id,
-      );
-      if (!companyObject) {
-        throw new UnprocessableEntityException({
-          status: HttpStatus.UNPROCESSABLE_ENTITY,
-          errors: {
-            company: 'notExists',
-          },
-        });
-      }
-      company = companyObject;
-    }
-
+    // A resource can never be reassigned to a different company via update.
     return this.resourceRepository.update(id, {
       // Do not remove comment below.
       // <updating-property-payload />
@@ -161,12 +179,12 @@ export class ResourcesService {
       type: updateResourceDto.type,
 
       title: updateResourceDto.title,
-
-      company,
     });
   }
 
-  remove(id: Resource['id']) {
+  async remove(id: Resource['id'], currentUser: JwtPayloadType) {
+    await this.findById(id, currentUser); // throws NotFoundException if foreign
+
     return this.resourceRepository.remove(id);
   }
 }

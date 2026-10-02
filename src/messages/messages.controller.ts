@@ -27,10 +27,13 @@ import {
 } from '../utils/dto/infinity-pagination-response.dto';
 import { infinityPagination } from '../utils/infinity-pagination';
 import { FindAllMessagesDto } from './dto/find-all-messages.dto';
+import { CurrentUser } from '../utils/decorators/current-user.decorator';
+import { JwtPayloadType } from '../auth/strategies/types/jwt-payload.type';
+import { CompanyMembershipGuard } from '../company-roles/company-membership.guard';
 
 @ApiTags('Messages')
 @ApiBearerAuth()
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(AuthGuard('jwt'), CompanyMembershipGuard)
 @Controller({
   path: 'messages',
   version: '1',
@@ -42,8 +45,11 @@ export class MessagesController {
   @ApiCreatedResponse({
     type: Message,
   })
-  create(@Body() createMessageDto: CreateMessageDto) {
-    return this.messagesService.create(createMessageDto);
+  create(
+    @CurrentUser() user: JwtPayloadType,
+    @Body() createMessageDto: CreateMessageDto,
+  ) {
+    return this.messagesService.create(user, createMessageDto);
   }
 
   @Get()
@@ -51,6 +57,7 @@ export class MessagesController {
     type: InfinityPaginationResponse(Message),
   })
   async findAll(
+    @CurrentUser() user: JwtPayloadType,
     @Query() query: FindAllMessagesDto,
   ): Promise<InfinityPaginationResponseDto<Message>> {
     const page = query?.page ?? 1;
@@ -65,6 +72,7 @@ export class MessagesController {
           page,
           limit,
         },
+        currentUser: user,
       }),
       { page, limit },
     );
@@ -79,8 +87,8 @@ export class MessagesController {
   @ApiOkResponse({
     type: Message,
   })
-  findById(@Param('id') id: string) {
-    return this.messagesService.findById(id);
+  findById(@CurrentUser() user: JwtPayloadType, @Param('id') id: string) {
+    return this.messagesService.findById(id, user);
   }
 
   @Patch(':id')
@@ -92,8 +100,12 @@ export class MessagesController {
   @ApiOkResponse({
     type: Message,
   })
-  update(@Param('id') id: string, @Body() updateMessageDto: UpdateMessageDto) {
-    return this.messagesService.update(id, updateMessageDto);
+  update(
+    @CurrentUser() user: JwtPayloadType,
+    @Param('id') id: string,
+    @Body() updateMessageDto: UpdateMessageDto,
+  ) {
+    return this.messagesService.update(id, user, updateMessageDto);
   }
 
   @Delete(':id')
@@ -102,7 +114,7 @@ export class MessagesController {
     type: String,
     required: true,
   })
-  remove(@Param('id') id: string) {
-    return this.messagesService.remove(id);
+  remove(@CurrentUser() user: JwtPayloadType, @Param('id') id: string) {
+    return this.messagesService.remove(id, user);
   }
 }

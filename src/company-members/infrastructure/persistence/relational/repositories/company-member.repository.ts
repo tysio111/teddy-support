@@ -7,6 +7,8 @@ import { CompanyMember } from '../../../../domain/company-member';
 import { CompanyMemberRepository } from '../../company-member.repository';
 import { CompanyMemberMapper } from '../mappers/company-member.mapper';
 import { IPaginationOptions } from '../../../../../utils/types/pagination-options';
+import { User } from '../../../../../users/domain/user';
+import { Company } from '../../../../../companies/domain/company';
 
 @Injectable()
 export class CompanyMemberRelationalRepository implements CompanyMemberRepository {
@@ -25,12 +27,15 @@ export class CompanyMemberRelationalRepository implements CompanyMemberRepositor
 
   async findAllWithPagination({
     paginationOptions,
+    companyId,
   }: {
     paginationOptions: IPaginationOptions;
+    companyId?: Company['id'];
   }): Promise<CompanyMember[]> {
     const entities = await this.companyMemberRepository.find({
       skip: (paginationOptions.page - 1) * paginationOptions.limit,
       take: paginationOptions.limit,
+      where: companyId ? { company: { id: companyId } } : undefined,
     });
 
     return entities.map((entity) => CompanyMemberMapper.toDomain(entity));
@@ -41,6 +46,14 @@ export class CompanyMemberRelationalRepository implements CompanyMemberRepositor
   ): Promise<NullableType<CompanyMember>> {
     const entity = await this.companyMemberRepository.findOne({
       where: { id },
+    });
+
+    return entity ? CompanyMemberMapper.toDomain(entity) : null;
+  }
+
+  async findByUserId(userId: User['id']): Promise<NullableType<CompanyMember>> {
+    const entity = await this.companyMemberRepository.findOne({
+      where: { user: { id: Number(userId) } },
     });
 
     return entity ? CompanyMemberMapper.toDomain(entity) : null;

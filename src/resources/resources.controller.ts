@@ -27,10 +27,13 @@ import {
 } from '../utils/dto/infinity-pagination-response.dto';
 import { infinityPagination } from '../utils/infinity-pagination';
 import { FindAllResourcesDto } from './dto/find-all-resources.dto';
+import { CurrentUser } from '../utils/decorators/current-user.decorator';
+import { JwtPayloadType } from '../auth/strategies/types/jwt-payload.type';
+import { CompanyMembershipGuard } from '../company-roles/company-membership.guard';
 
 @ApiTags('Resources')
 @ApiBearerAuth()
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(AuthGuard('jwt'), CompanyMembershipGuard)
 @Controller({
   path: 'resources',
   version: '1',
@@ -42,8 +45,11 @@ export class ResourcesController {
   @ApiCreatedResponse({
     type: Resource,
   })
-  create(@Body() createResourceDto: CreateResourceDto) {
-    return this.resourcesService.create(createResourceDto);
+  create(
+    @CurrentUser() user: JwtPayloadType,
+    @Body() createResourceDto: CreateResourceDto,
+  ) {
+    return this.resourcesService.create(user, createResourceDto);
   }
 
   @Get()
@@ -51,6 +57,7 @@ export class ResourcesController {
     type: InfinityPaginationResponse(Resource),
   })
   async findAll(
+    @CurrentUser() user: JwtPayloadType,
     @Query() query: FindAllResourcesDto,
   ): Promise<InfinityPaginationResponseDto<Resource>> {
     const page = query?.page ?? 1;
@@ -65,6 +72,7 @@ export class ResourcesController {
           page,
           limit,
         },
+        currentUser: user,
       }),
       { page, limit },
     );
@@ -79,8 +87,8 @@ export class ResourcesController {
   @ApiOkResponse({
     type: Resource,
   })
-  findById(@Param('id') id: string) {
-    return this.resourcesService.findById(id);
+  findById(@CurrentUser() user: JwtPayloadType, @Param('id') id: string) {
+    return this.resourcesService.findById(id, user);
   }
 
   @Patch(':id')
@@ -93,10 +101,11 @@ export class ResourcesController {
     type: Resource,
   })
   update(
+    @CurrentUser() user: JwtPayloadType,
     @Param('id') id: string,
     @Body() updateResourceDto: UpdateResourceDto,
   ) {
-    return this.resourcesService.update(id, updateResourceDto);
+    return this.resourcesService.update(id, user, updateResourceDto);
   }
 
   @Delete(':id')
@@ -105,7 +114,7 @@ export class ResourcesController {
     type: String,
     required: true,
   })
-  remove(@Param('id') id: string) {
-    return this.resourcesService.remove(id);
+  remove(@CurrentUser() user: JwtPayloadType, @Param('id') id: string) {
+    return this.resourcesService.remove(id, user);
   }
 }

@@ -27,10 +27,13 @@ import {
 } from '../utils/dto/infinity-pagination-response.dto';
 import { infinityPagination } from '../utils/infinity-pagination';
 import { FindAllConversationsDto } from './dto/find-all-conversations.dto';
+import { CurrentUser } from '../utils/decorators/current-user.decorator';
+import { JwtPayloadType } from '../auth/strategies/types/jwt-payload.type';
+import { CompanyMembershipGuard } from '../company-roles/company-membership.guard';
 
 @ApiTags('Conversations')
 @ApiBearerAuth()
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(AuthGuard('jwt'), CompanyMembershipGuard)
 @Controller({
   path: 'conversations',
   version: '1',
@@ -42,8 +45,11 @@ export class ConversationsController {
   @ApiCreatedResponse({
     type: Conversation,
   })
-  create(@Body() createConversationDto: CreateConversationDto) {
-    return this.conversationsService.create(createConversationDto);
+  create(
+    @CurrentUser() user: JwtPayloadType,
+    @Body() createConversationDto: CreateConversationDto,
+  ) {
+    return this.conversationsService.create(user, createConversationDto);
   }
 
   @Get()
@@ -51,6 +57,7 @@ export class ConversationsController {
     type: InfinityPaginationResponse(Conversation),
   })
   async findAll(
+    @CurrentUser() user: JwtPayloadType,
     @Query() query: FindAllConversationsDto,
   ): Promise<InfinityPaginationResponseDto<Conversation>> {
     const page = query?.page ?? 1;
@@ -65,6 +72,7 @@ export class ConversationsController {
           page,
           limit,
         },
+        currentUser: user,
       }),
       { page, limit },
     );
@@ -79,8 +87,8 @@ export class ConversationsController {
   @ApiOkResponse({
     type: Conversation,
   })
-  findById(@Param('id') id: string) {
-    return this.conversationsService.findById(id);
+  findById(@CurrentUser() user: JwtPayloadType, @Param('id') id: string) {
+    return this.conversationsService.findById(id, user);
   }
 
   @Patch(':id')
@@ -93,10 +101,11 @@ export class ConversationsController {
     type: Conversation,
   })
   update(
+    @CurrentUser() user: JwtPayloadType,
     @Param('id') id: string,
     @Body() updateConversationDto: UpdateConversationDto,
   ) {
-    return this.conversationsService.update(id, updateConversationDto);
+    return this.conversationsService.update(id, user, updateConversationDto);
   }
 
   @Delete(':id')
@@ -105,7 +114,7 @@ export class ConversationsController {
     type: String,
     required: true,
   })
-  remove(@Param('id') id: string) {
-    return this.conversationsService.remove(id);
+  remove(@CurrentUser() user: JwtPayloadType, @Param('id') id: string) {
+    return this.conversationsService.remove(id, user);
   }
 }

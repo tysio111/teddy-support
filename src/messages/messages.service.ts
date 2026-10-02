@@ -5,6 +5,7 @@ import {
   // common
   Injectable,
   HttpStatus,
+  NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { CreateMessageDto } from './dto/create-message.dto';
@@ -12,6 +13,8 @@ import { UpdateMessageDto } from './dto/update-message.dto';
 import { MessageRepository } from './infrastructure/persistence/message.repository';
 import { IPaginationOptions } from '../utils/types/pagination-options';
 import { Message } from './domain/message';
+import { JwtPayloadType } from '../auth/strategies/types/jwt-payload.type';
+import { isPlatformAdmin } from '../roles/is-platform-admin.util';
 
 @Injectable()
 export class MessagesService {
@@ -22,12 +25,18 @@ export class MessagesService {
     private readonly messageRepository: MessageRepository,
   ) {}
 
-  async create(createMessageDto: CreateMessageDto) {
+  async create(
+    currentUser: JwtPayloadType,
+    createMessageDto: CreateMessageDto,
+  ) {
     // Do not remove comment below.
     // <creating-property />
 
+    // findById enforces that the conversation belongs to the caller's
+    // company.
     const conversationObject = await this.conversationService.findById(
       createMessageDto.conversation.id,
+      currentUser,
     );
     if (!conversationObject) {
       throw new UnprocessableEntityException({
@@ -52,19 +61,35 @@ export class MessagesService {
 
   findAllWithPagination({
     paginationOptions,
+    currentUser,
   }: {
     paginationOptions: IPaginationOptions;
+    currentUser: JwtPayloadType;
   }) {
     return this.messageRepository.findAllWithPagination({
       paginationOptions: {
         page: paginationOptions.page,
         limit: paginationOptions.limit,
       },
+      companyId: isPlatformAdmin(currentUser)
+        ? undefined
+        : (currentUser.companyId ?? undefined),
     });
   }
 
-  findById(id: Message['id']) {
-    return this.messageRepository.findById(id);
+  async findById(id: Message['id'], currentUser: JwtPayloadType) {
+    const message = await this.messageRepository.findById(id);
+
+    if (
+      message &&
+      !isPlatformAdmin(currentUser) &&
+      String(message.conversation?.company?.id) !==
+        String(currentUser.companyId)
+    ) {
+      throw new NotFoundException();
+    }
+
+    return message;
   }
 
   findByIds(ids: Message['id'][]) {
@@ -73,17 +98,22 @@ export class MessagesService {
 
   async update(
     id: Message['id'],
-
+    currentUser: JwtPayloadType,
     updateMessageDto: UpdateMessageDto,
   ) {
     // Do not remove comment below.
     // <updating-property />
 
+    await this.findById(id, currentUser); // throws NotFoundException if foreign
+
     let conversation: Conversation | undefined = undefined;
 
     if (updateMessageDto.conversation) {
+      // findById enforces that the conversation belongs to the caller's
+      // company.
       const conversationObject = await this.conversationService.findById(
         updateMessageDto.conversation.id,
+        currentUser,
       );
       if (!conversationObject) {
         throw new UnprocessableEntityException({
@@ -107,7 +137,9 @@ export class MessagesService {
     });
   }
 
-  remove(id: Message['id']) {
+  async remove(id: Message['id'], currentUser: JwtPayloadType) {
+    await this.findById(id, currentUser); // throws NotFoundException if foreign
+
     return this.messageRepository.remove(id);
   }
 }

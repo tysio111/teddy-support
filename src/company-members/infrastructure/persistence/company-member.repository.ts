@@ -1,6 +1,8 @@
 import { DeepPartial } from '../../../utils/types/deep-partial.type';
 import { NullableType } from '../../../utils/types/nullable.type';
 import { IPaginationOptions } from '../../../utils/types/pagination-options';
+import { User } from '../../../users/domain/user';
+import { Company } from '../../../companies/domain/company';
 import { CompanyMember } from '../../domain/company-member';
 
 export abstract class CompanyMemberRepository {
@@ -8,10 +10,16 @@ export abstract class CompanyMemberRepository {
     data: Omit<CompanyMember, 'id' | 'createdAt' | 'updatedAt'>,
   ): Promise<CompanyMember>;
 
+  abstract findByUserId(
+    userId: User['id'],
+  ): Promise<NullableType<CompanyMember>>;
+
   abstract findAllWithPagination({
     paginationOptions,
+    companyId,
   }: {
     paginationOptions: IPaginationOptions;
+    companyId?: Company['id'];
   }): Promise<CompanyMember[]>;
 
   abstract findById(

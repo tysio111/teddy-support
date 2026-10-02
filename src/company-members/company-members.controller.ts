@@ -27,10 +27,15 @@ import {
 } from '../utils/dto/infinity-pagination-response.dto';
 import { infinityPagination } from '../utils/infinity-pagination';
 import { FindAllCompanyMembersDto } from './dto/find-all-company-members.dto';
+import { CurrentUser } from '../utils/decorators/current-user.decorator';
+import { JwtPayloadType } from '../auth/strategies/types/jwt-payload.type';
+import { CompanyRoles } from '../company-roles/company-roles.decorator';
+import { CompanyRolesGuard } from '../company-roles/company-roles.guard';
+import { CompanyMembershipGuard } from '../company-roles/company-membership.guard';
 
 @ApiTags('Companymembers')
 @ApiBearerAuth()
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(AuthGuard('jwt'), CompanyMembershipGuard)
 @Controller({
   path: 'company-members',
   version: '1',
@@ -39,11 +44,16 @@ export class CompanyMembersController {
   constructor(private readonly companyMembersService: CompanyMembersService) {}
 
   @Post()
+  @CompanyRoles('owner', 'admin')
+  @UseGuards(CompanyRolesGuard)
   @ApiCreatedResponse({
     type: CompanyMember,
   })
-  create(@Body() createCompanyMemberDto: CreateCompanyMemberDto) {
-    return this.companyMembersService.create(createCompanyMemberDto);
+  create(
+    @CurrentUser() user: JwtPayloadType,
+    @Body() createCompanyMemberDto: CreateCompanyMemberDto,
+  ) {
+    return this.companyMembersService.create(user, createCompanyMemberDto);
   }
 
   @Get()
@@ -51,6 +61,7 @@ export class CompanyMembersController {
     type: InfinityPaginationResponse(CompanyMember),
   })
   async findAll(
+    @CurrentUser() user: JwtPayloadType,
     @Query() query: FindAllCompanyMembersDto,
   ): Promise<InfinityPaginationResponseDto<CompanyMember>> {
     const page = query?.page ?? 1;
@@ -65,6 +76,7 @@ export class CompanyMembersController {
           page,
           limit,
         },
+        currentUser: user,
       }),
       { page, limit },
     );
@@ -79,11 +91,13 @@ export class CompanyMembersController {
   @ApiOkResponse({
     type: CompanyMember,
   })
-  findById(@Param('id') id: string) {
-    return this.companyMembersService.findById(id);
+  findById(@CurrentUser() user: JwtPayloadType, @Param('id') id: string) {
+    return this.companyMembersService.findById(id, user);
   }
 
   @Patch(':id')
+  @CompanyRoles('owner', 'admin')
+  @UseGuards(CompanyRolesGuard)
   @ApiParam({
     name: 'id',
     type: String,
@@ -93,19 +107,22 @@ export class CompanyMembersController {
     type: CompanyMember,
   })
   update(
+    @CurrentUser() user: JwtPayloadType,
     @Param('id') id: string,
     @Body() updateCompanyMemberDto: UpdateCompanyMemberDto,
   ) {
-    return this.companyMembersService.update(id, updateCompanyMemberDto);
+    return this.companyMembersService.update(id, user, updateCompanyMemberDto);
   }
 
   @Delete(':id')
+  @CompanyRoles('owner', 'admin')
+  @UseGuards(CompanyRolesGuard)
   @ApiParam({
     name: 'id',
     type: String,
     required: true,
   })
-  remove(@Param('id') id: string) {
-    return this.companyMembersService.remove(id);
+  remove(@CurrentUser() user: JwtPayloadType, @Param('id') id: string) {
+    return this.companyMembersService.remove(id, user);
   }
 }

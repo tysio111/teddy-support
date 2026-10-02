@@ -7,6 +7,7 @@ import { ActionParameter } from '../../../../domain/action-parameter';
 import { ActionParameterRepository } from '../../action-parameter.repository';
 import { ActionParameterMapper } from '../mappers/action-parameter.mapper';
 import { IPaginationOptions } from '../../../../../utils/types/pagination-options';
+import { Company } from '../../../../../companies/domain/company';
 
 @Injectable()
 export class ActionParameterRelationalRepository implements ActionParameterRepository {
@@ -25,12 +26,15 @@ export class ActionParameterRelationalRepository implements ActionParameterRepos
 
   async findAllWithPagination({
     paginationOptions,
+    companyId,
   }: {
     paginationOptions: IPaginationOptions;
+    companyId?: Company['id'];
   }): Promise<ActionParameter[]> {
     const entities = await this.actionParameterRepository.find({
       skip: (paginationOptions.page - 1) * paginationOptions.limit,
       take: paginationOptions.limit,
+      where: companyId ? { action: { company: { id: companyId } } } : undefined,
     });
 
     return entities.map((entity) => ActionParameterMapper.toDomain(entity));

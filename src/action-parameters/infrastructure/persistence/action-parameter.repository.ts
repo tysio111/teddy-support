@@ -1,6 +1,7 @@
 import { DeepPartial } from '../../../utils/types/deep-partial.type';
 import { NullableType } from '../../../utils/types/nullable.type';
 import { IPaginationOptions } from '../../../utils/types/pagination-options';
+import { Company } from '../../../companies/domain/company';
 import { ActionParameter } from '../../domain/action-parameter';
 
 export abstract class ActionParameterRepository {
@@ -10,8 +11,10 @@ export abstract class ActionParameterRepository {
 
   abstract findAllWithPagination({
     paginationOptions,
+    companyId,
   }: {
     paginationOptions: IPaginationOptions;
+    companyId?: Company['id'];
   }): Promise<ActionParameter[]>;
 
   abstract findById(

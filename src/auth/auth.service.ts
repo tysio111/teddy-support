@@ -28,6 +28,9 @@ import { Session } from '../session/domain/session';
 import { SessionService } from '../session/session.service';
 import { StatusEnum } from '../statuses/statuses.enum';
 import { User } from '../users/domain/user';
+import { Company } from '../companies/domain/company';
+import { CompanyMember } from '../company-members/domain/company-member';
+import { CompanyMembersService } from '../company-members/company-members.service';
 
 @Injectable()
 export class AuthService {
@@ -37,7 +40,20 @@ export class AuthService {
     private readonly sessionService: SessionService,
     private readonly mailService: MailService,
     private readonly configService: ConfigService<AllConfigType>,
+    private readonly companyMembersService: CompanyMembersService,
   ) {}
+
+  private async resolveCompanyClaims(userId: User['id']): Promise<{
+    companyId: Company['id'] | null;
+    companyRole: CompanyMember['role'] | null;
+  }> {
+    const membership = await this.companyMembersService.findByUserId(userId);
+
+    return {
+      companyId: membership?.company?.id ?? null,
+      companyRole: membership?.role ?? null,
+    };
+  }
 
   async validateLogin(loginDto: AuthEmailLoginDto): Promise<LoginResponseDto> {
     const user = await this.usersService.findByEmail(loginDto.email);
@@ -81,11 +97,14 @@ export class AuthService {
       hash,
     });
 
+    const companyClaims = await this.resolveCompanyClaims(user.id);
+
     const { token, refreshToken, tokenExpires } = await this.getTokensData({
       id: user.id,
       role: user.role,
       sessionId: session.id,
       hash,
+      ...companyClaims,
     });
 
     return {
@@ -178,6 +197,8 @@ export class AuthService {
       hash,
     });
 
+    const companyClaims = await this.resolveCompanyClaims(user.id);
+
     const {
       token: jwtToken,
       refreshToken,
@@ -187,6 +208,7 @@ export class AuthService {
       role: user.role,
       sessionId: session.id,
       hash,
+      ...companyClaims,
     });
 
     return {
@@ -543,6 +565,8 @@ export class AuthService {
       throw new UnauthorizedException();
     }
 
+    const companyClaims = await this.resolveCompanyClaims(session.user.id);
+
     const { token, refreshToken, tokenExpires } = await this.getTokensData({
       id: session.user.id,
       role: {
@@ -550,6 +574,7 @@ export class AuthService {
       },
       sessionId: session.id,
       hash,
+      ...companyClaims,
     });
 
     return {
@@ -601,6 +626,8 @@ export class AuthService {
     role: User['role'];
     sessionId: Session['id'];
     hash: Session['hash'];
+    companyId: Company['id'] | null;
+    companyRole: CompanyMember['role'] | null;
   }) {
     const tokenExpiresIn = this.configService.getOrThrow('auth.expires', {
       infer: true,
@@ -614,6 +641,8 @@ export class AuthService {
           id: data.id,
           role: data.role,
           sessionId: data.sessionId,
+          companyId: data.companyId,
+          companyRole: data.companyRole,
         },
         {
           secret: this.configService.getOrThrow('auth.secret', { infer: true }),

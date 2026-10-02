@@ -1,6 +1,7 @@
 import { DeepPartial } from '../../../utils/types/deep-partial.type';
 import { NullableType } from '../../../utils/types/nullable.type';
 import { IPaginationOptions } from '../../../utils/types/pagination-options';
+import { Company } from '../../../companies/domain/company';
 import { Client } from '../../domain/client';
 
 export abstract class ClientRepository {
@@ -10,8 +11,10 @@ export abstract class ClientRepository {
 
   abstract findAllWithPagination({
     paginationOptions,
+    companyId,
   }: {
     paginationOptions: IPaginationOptions;
+    companyId?: Company['id'];
   }): Promise<Client[]>;
 
   abstract findById(id: Client['id']): Promise<NullableType<Client>>;
