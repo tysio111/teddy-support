@@ -13,15 +13,12 @@ export function loadContext({
   actionParametersService,
 }: IntentGraphDeps) {
   return async (state: IntentGraphStateType): Promise<IntentGraphUpdate> => {
-    const message = await messagesService.findByIdUnscoped(state.messageId);
-    if (
-      !message ||
-      String(message.conversation?.company?.id) !== String(state.companyId)
-    ) {
+    const message = await messagesService.findById(state.messageId);
+    if (!message) {
       return { outcome: IntentOutcomeEnum.skipped };
     }
 
-    const actions = await actionsService.findActiveByCompanyId(state.companyId);
+    const actions = await actionsService.findActive();
     if (!actions.length) {
       return { message, outcome: IntentOutcomeEnum.noActions };
     }

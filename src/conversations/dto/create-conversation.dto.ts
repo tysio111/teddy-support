@@ -1,7 +1,5 @@
 import { ClientDto } from '../../clients/dto/client.dto';
 
-import { CompanyDto } from '../../companies/dto/company.dto';
-
 import {
   // decorators here
   Type,
@@ -47,15 +45,6 @@ export class CreateConversationDto {
   @Type(() => ClientDto)
   @IsNotEmptyObject()
   client?: ClientDto | null;
-
-  @ApiProperty({
-    required: true,
-    type: () => CompanyDto,
-  })
-  @ValidateNested()
-  @Type(() => CompanyDto)
-  @IsNotEmptyObject()
-  company: CompanyDto;
 
   // Don't forget to use the class-validator decorators in the DTO properties.
 }

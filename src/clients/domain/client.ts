@@ -1,5 +1,3 @@
-import { Company } from '../../companies/domain/company';
-
 import { ApiProperty } from '@nestjs/swagger';
 
 export class Client {
@@ -20,12 +18,6 @@ export class Client {
     nullable: true,
   })
   externalReference?: string | null;
-
-  @ApiProperty({
-    type: () => Company,
-    nullable: false,
-  })
-  company: Company;
 
   @ApiProperty({
     type: String,

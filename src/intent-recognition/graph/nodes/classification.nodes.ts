@@ -39,7 +39,6 @@ export function persistIntents({
         const { action } = findCatalogAction(state, candidate.actionId);
         const threshold = resolveConfidenceThreshold(
           action,
-          message.conversation.company,
           config.defaultConfidenceThreshold,
         );
 

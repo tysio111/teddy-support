@@ -1,7 +1,5 @@
 import { Client } from '../../../../domain/client';
 
-import { CompanyMapper } from '../../../../../companies/infrastructure/persistence/relational/mappers/company.mapper';
-
 import { ClientEntity } from '../entities/client.entity';
 
 export class ClientMapper {
@@ -12,10 +10,6 @@ export class ClientMapper {
     domainEntity.name = raw.name;
 
     domainEntity.externalReference = raw.externalReference;
-
-    if (raw.company) {
-      domainEntity.company = CompanyMapper.toDomain(raw.company);
-    }
 
     domainEntity.id = raw.id;
     domainEntity.createdAt = raw.createdAt;
@@ -31,12 +25,6 @@ export class ClientMapper {
     persistenceEntity.name = domainEntity.name;
 
     persistenceEntity.externalReference = domainEntity.externalReference;
-
-    if (domainEntity.company) {
-      persistenceEntity.company = CompanyMapper.toPersistence(
-        domainEntity.company,
-      );
-    }
 
     if (domainEntity.id) {
       persistenceEntity.id = domainEntity.id;

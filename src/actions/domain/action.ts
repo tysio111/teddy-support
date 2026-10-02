@@ -1,5 +1,3 @@
-import { Company } from '../../companies/domain/company';
-
 import { ApiProperty } from '@nestjs/swagger';
 
 export class Action {
@@ -56,12 +54,6 @@ export class Action {
     nullable: false,
   })
   name: string;
-
-  @ApiProperty({
-    type: () => Company,
-    nullable: false,
-  })
-  company: Company;
 
   @ApiProperty({
     type: String,

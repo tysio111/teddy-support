@@ -1,5 +1,4 @@
 import { ClientsModule } from '../clients/clients.module';
-import { CompaniesModule } from '../companies/companies.module';
 import {
   // do not remove this comment
   Module,
@@ -11,8 +10,6 @@ import { RelationalConversationPersistenceModule } from './infrastructure/persis
 @Module({
   imports: [
     ClientsModule,
-
-    CompaniesModule,
 
     // do not remove this comment
     RelationalConversationPersistenceModule,

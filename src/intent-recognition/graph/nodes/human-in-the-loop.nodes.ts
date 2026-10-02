@@ -90,7 +90,7 @@ export function awaitConfirmation({
       actionName: state.topCatalogAction!.action.name,
     });
 
-    const reply = await messagesService.findByIdUnscoped(answer.messageId);
+    const reply = await messagesService.findById(answer.messageId);
     const decision = parseConfirmation(reply?.content ?? '');
     if (decision === ConfirmationAnswerEnum.yes) {
       return { outcome: null };

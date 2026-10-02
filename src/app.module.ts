@@ -28,10 +28,6 @@ const infrastructureDatabaseModule = TypeOrmModule.forRootAsync({
   },
 });
 
-import { CompaniesModule } from './companies/companies.module';
-
-import { CompanyMembersModule } from './company-members/company-members.module';
-
 import { ClientsModule } from './clients/clients.module';
 
 import { ResourcesModule } from './resources/resources.module';
@@ -62,8 +58,6 @@ import { IntentRecognitionModule } from './intent-recognition/intent-recognition
     ActionsModule,
     ResourcesModule,
     ClientsModule,
-    CompanyMembersModule,
-    CompaniesModule,
     ConfigModule.forRoot({
       isGlobal: true,
       load: [

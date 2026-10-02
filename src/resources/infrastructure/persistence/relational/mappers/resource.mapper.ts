@@ -2,8 +2,6 @@ import { Resource } from '../../../../domain/resource';
 
 import { FileMapper } from '../../../../../files/infrastructure/persistence/relational/mappers/file.mapper';
 
-import { CompanyMapper } from '../../../../../companies/infrastructure/persistence/relational/mappers/company.mapper';
-
 import { ResourceEntity } from '../entities/resource.entity';
 
 export class ResourceMapper {
@@ -24,10 +22,6 @@ export class ResourceMapper {
     domainEntity.type = raw.type;
 
     domainEntity.title = raw.title;
-
-    if (raw.company) {
-      domainEntity.company = CompanyMapper.toDomain(raw.company);
-    }
 
     domainEntity.id = raw.id;
     domainEntity.createdAt = raw.createdAt;
@@ -53,12 +47,6 @@ export class ResourceMapper {
     persistenceEntity.type = domainEntity.type;
 
     persistenceEntity.title = domainEntity.title;
-
-    if (domainEntity.company) {
-      persistenceEntity.company = CompanyMapper.toPersistence(
-        domainEntity.company,
-      );
-    }
 
     if (domainEntity.id) {
       persistenceEntity.id = domainEntity.id;

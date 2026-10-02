@@ -1,8 +1,6 @@
 import { Exclude } from 'class-transformer';
 import { Client } from '../../clients/domain/client';
 
-import { Company } from '../../companies/domain/company';
-
 import { ApiProperty } from '@nestjs/swagger';
 
 export class Conversation {
@@ -26,12 +24,6 @@ export class Conversation {
     nullable: true,
   })
   client?: Client | null;
-
-  @ApiProperty({
-    type: () => Company,
-    nullable: false,
-  })
-  company: Company;
 
   @ApiProperty({
     type: String,

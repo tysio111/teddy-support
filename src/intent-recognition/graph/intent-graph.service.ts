@@ -17,7 +17,6 @@ import { INTENT_GRAPH } from './intent-graph.provider';
 
 export type IntentGraphInput = {
   messageId: Message['id'];
-  companyId: string;
   conversationId: string;
 };
 
@@ -104,7 +103,6 @@ export class IntentGraphService implements OnModuleDestroy {
       callbacks: [tracker],
       // Picked up by LangSmith when LANGSMITH_TRACING=true.
       runName: 'intent-recognition',
-      tags: [`company:${meta.companyId}`],
       metadata: {
         messageId: meta.messageId,
         conversationId: meta.conversationId,

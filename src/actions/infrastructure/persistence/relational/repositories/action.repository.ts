@@ -7,7 +7,6 @@ import { Action } from '../../../../domain/action';
 import { ActionRepository } from '../../action.repository';
 import { ActionMapper } from '../mappers/action.mapper';
 import { IPaginationOptions } from '../../../../../utils/types/pagination-options';
-import { Company } from '../../../../../companies/domain/company';
 
 @Injectable()
 export class ActionRelationalRepository implements ActionRepository {
@@ -26,15 +25,12 @@ export class ActionRelationalRepository implements ActionRepository {
 
   async findAllWithPagination({
     paginationOptions,
-    companyId,
   }: {
     paginationOptions: IPaginationOptions;
-    companyId?: Company['id'];
   }): Promise<Action[]> {
     const entities = await this.actionRepository.find({
       skip: (paginationOptions.page - 1) * paginationOptions.limit,
       take: paginationOptions.limit,
-      where: companyId ? { company: { id: companyId } } : undefined,
     });
 
     return entities.map((entity) => ActionMapper.toDomain(entity));
@@ -56,12 +52,9 @@ export class ActionRelationalRepository implements ActionRepository {
     return entities.map((entity) => ActionMapper.toDomain(entity));
   }
 
-  async findByCompanyIdAndStatus(
-    companyId: Company['id'],
-    status: Action['status'],
-  ): Promise<Action[]> {
+  async findByStatus(status: Action['status']): Promise<Action[]> {
     const entities = await this.actionRepository.find({
-      where: { company: { id: companyId }, status },
+      where: { status },
     });
 
     return entities.map((entity) => ActionMapper.toDomain(entity));

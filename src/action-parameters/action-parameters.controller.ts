@@ -27,13 +27,14 @@ import {
 } from '../utils/dto/infinity-pagination-response.dto';
 import { infinityPagination } from '../utils/infinity-pagination';
 import { FindAllActionParametersDto } from './dto/find-all-action-parameters.dto';
-import { CurrentUser } from '../utils/decorators/current-user.decorator';
-import { JwtPayloadType } from '../auth/strategies/types/jwt-payload.type';
-import { CompanyMembershipGuard } from '../company-roles/company-membership.guard';
+import { Roles } from '../roles/roles.decorator';
+import { RoleEnum } from '../roles/roles.enum';
+import { RolesGuard } from '../roles/roles.guard';
 
 @ApiTags('Actionparameters')
 @ApiBearerAuth()
-@UseGuards(AuthGuard('jwt'), CompanyMembershipGuard)
+@Roles(RoleEnum.admin)
+@UseGuards(AuthGuard('jwt'), RolesGuard)
 @Controller({
   path: 'action-parameters',
   version: '1',
@@ -47,11 +48,8 @@ export class ActionParametersController {
   @ApiCreatedResponse({
     type: ActionParameter,
   })
-  create(
-    @CurrentUser() user: JwtPayloadType,
-    @Body() createActionParameterDto: CreateActionParameterDto,
-  ) {
-    return this.actionParametersService.create(user, createActionParameterDto);
+  create(@Body() createActionParameterDto: CreateActionParameterDto) {
+    return this.actionParametersService.create(createActionParameterDto);
   }
 
   @Get()
@@ -59,7 +57,6 @@ export class ActionParametersController {
     type: InfinityPaginationResponse(ActionParameter),
   })
   async findAll(
-    @CurrentUser() user: JwtPayloadType,
     @Query() query: FindAllActionParametersDto,
   ): Promise<InfinityPaginationResponseDto<ActionParameter>> {
     const page = query?.page ?? 1;
@@ -74,7 +71,6 @@ export class ActionParametersController {
           page,
           limit,
         },
-        currentUser: user,
       }),
       { page, limit },
     );
@@ -89,8 +85,8 @@ export class ActionParametersController {
   @ApiOkResponse({
     type: ActionParameter,
   })
-  findById(@CurrentUser() user: JwtPayloadType, @Param('id') id: string) {
-    return this.actionParametersService.findById(id, user);
+  findById(@Param('id') id: string) {
+    return this.actionParametersService.findById(id);
   }
 
   @Patch(':id')
@@ -103,15 +99,10 @@ export class ActionParametersController {
     type: ActionParameter,
   })
   update(
-    @CurrentUser() user: JwtPayloadType,
     @Param('id') id: string,
     @Body() updateActionParameterDto: UpdateActionParameterDto,
   ) {
-    return this.actionParametersService.update(
-      id,
-      user,
-      updateActionParameterDto,
-    );
+    return this.actionParametersService.update(id, updateActionParameterDto);
   }
 
   @Delete(':id')
@@ -120,7 +111,7 @@ export class ActionParametersController {
     type: String,
     required: true,
   })
-  remove(@CurrentUser() user: JwtPayloadType, @Param('id') id: string) {
-    return this.actionParametersService.remove(id, user);
+  remove(@Param('id') id: string) {
+    return this.actionParametersService.remove(id);
   }
 }

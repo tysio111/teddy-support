@@ -30,8 +30,6 @@ import { FindAllDetectedIntentsDto } from './dto/find-all-detected-intents.dto';
 import { Roles } from '../roles/roles.decorator';
 import { RoleEnum } from '../roles/roles.enum';
 import { RolesGuard } from '../roles/roles.guard';
-import { CurrentUser } from '../utils/decorators/current-user.decorator';
-import { JwtPayloadType } from '../auth/strategies/types/jwt-payload.type';
 
 @ApiTags('Detectedintents')
 @ApiBearerAuth()
@@ -50,11 +48,8 @@ export class DetectedIntentsController {
   @ApiCreatedResponse({
     type: DetectedIntent,
   })
-  create(
-    @CurrentUser() user: JwtPayloadType,
-    @Body() createDetectedIntentDto: CreateDetectedIntentDto,
-  ) {
-    return this.detectedIntentsService.create(user, createDetectedIntentDto);
+  create(@Body() createDetectedIntentDto: CreateDetectedIntentDto) {
+    return this.detectedIntentsService.create(createDetectedIntentDto);
   }
 
   @Get()
@@ -104,15 +99,10 @@ export class DetectedIntentsController {
     type: DetectedIntent,
   })
   update(
-    @CurrentUser() user: JwtPayloadType,
     @Param('id') id: string,
     @Body() updateDetectedIntentDto: UpdateDetectedIntentDto,
   ) {
-    return this.detectedIntentsService.update(
-      id,
-      user,
-      updateDetectedIntentDto,
-    );
+    return this.detectedIntentsService.update(id, updateDetectedIntentDto);
   }
 
   @Delete(':id')

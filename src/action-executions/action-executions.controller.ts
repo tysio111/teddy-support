@@ -30,8 +30,6 @@ import { FindAllActionExecutionsDto } from './dto/find-all-action-executions.dto
 import { Roles } from '../roles/roles.decorator';
 import { RoleEnum } from '../roles/roles.enum';
 import { RolesGuard } from '../roles/roles.guard';
-import { CurrentUser } from '../utils/decorators/current-user.decorator';
-import { JwtPayloadType } from '../auth/strategies/types/jwt-payload.type';
 
 @ApiTags('Actionexecutions')
 @ApiBearerAuth()
@@ -50,11 +48,8 @@ export class ActionExecutionsController {
   @ApiCreatedResponse({
     type: ActionExecution,
   })
-  create(
-    @CurrentUser() user: JwtPayloadType,
-    @Body() createActionExecutionDto: CreateActionExecutionDto,
-  ) {
-    return this.actionExecutionsService.create(user, createActionExecutionDto);
+  create(@Body() createActionExecutionDto: CreateActionExecutionDto) {
+    return this.actionExecutionsService.create(createActionExecutionDto);
   }
 
   @Get()
@@ -104,15 +99,10 @@ export class ActionExecutionsController {
     type: ActionExecution,
   })
   update(
-    @CurrentUser() user: JwtPayloadType,
     @Param('id') id: string,
     @Body() updateActionExecutionDto: UpdateActionExecutionDto,
   ) {
-    return this.actionExecutionsService.update(
-      id,
-      user,
-      updateActionExecutionDto,
-    );
+    return this.actionExecutionsService.update(id, updateActionExecutionDto);
   }
 
   @Delete(':id')

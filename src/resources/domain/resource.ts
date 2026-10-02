@@ -1,8 +1,6 @@
 import { Exclude } from 'class-transformer';
 import { FileType } from '../../files/domain/file';
 
-import { Company } from '../../companies/domain/company';
-
 import { ApiProperty } from '@nestjs/swagger';
 
 export class Resource {
@@ -35,12 +33,6 @@ export class Resource {
     nullable: false,
   })
   title: string;
-
-  @ApiProperty({
-    type: () => Company,
-    nullable: false,
-  })
-  company: Company;
 
   @ApiProperty({
     type: String,

@@ -15,7 +15,6 @@ import { UpdateDetectedIntentDto } from './dto/update-detected-intent.dto';
 import { DetectedIntentRepository } from './infrastructure/persistence/detected-intent.repository';
 import { IPaginationOptions } from '../utils/types/pagination-options';
 import { DetectedIntent } from './domain/detected-intent';
-import { JwtPayloadType } from '../auth/strategies/types/jwt-payload.type';
 
 @Injectable()
 export class DetectedIntentsService {
@@ -28,10 +27,7 @@ export class DetectedIntentsService {
     private readonly detectedIntentRepository: DetectedIntentRepository,
   ) {}
 
-  async create(
-    currentUser: JwtPayloadType,
-    createDetectedIntentDto: CreateDetectedIntentDto,
-  ) {
+  async create(createDetectedIntentDto: CreateDetectedIntentDto) {
     // Do not remove comment below.
     // <creating-property />
 
@@ -40,7 +36,6 @@ export class DetectedIntentsService {
     if (createDetectedIntentDto.action) {
       const actionObject = await this.actionService.findById(
         createDetectedIntentDto.action.id,
-        currentUser,
       );
       if (!actionObject) {
         throw new UnprocessableEntityException({
@@ -60,7 +55,6 @@ export class DetectedIntentsService {
     if (createDetectedIntentDto.message) {
       const messageObject = await this.messageService.findById(
         createDetectedIntentDto.message.id,
-        currentUser,
       );
       if (!messageObject) {
         throw new UnprocessableEntityException({
@@ -113,7 +107,7 @@ export class DetectedIntentsService {
 
   async update(
     id: DetectedIntent['id'],
-    currentUser: JwtPayloadType,
+
     updateDetectedIntentDto: UpdateDetectedIntentDto,
   ) {
     // Do not remove comment below.
@@ -124,7 +118,6 @@ export class DetectedIntentsService {
     if (updateDetectedIntentDto.action) {
       const actionObject = await this.actionService.findById(
         updateDetectedIntentDto.action.id,
-        currentUser,
       );
       if (!actionObject) {
         throw new UnprocessableEntityException({
@@ -144,7 +137,6 @@ export class DetectedIntentsService {
     if (updateDetectedIntentDto.message) {
       const messageObject = await this.messageService.findById(
         updateDetectedIntentDto.message.id,
-        currentUser,
       );
       if (!messageObject) {
         throw new UnprocessableEntityException({
@@ -175,7 +167,7 @@ export class DetectedIntentsService {
   }
 
   // System context (used by intent recognition): message and action are
-  // already resolved and verified to belong to the same company.
+  // already resolved.
   createForMessage(
     data: Omit<DetectedIntent, 'id' | 'createdAt' | 'updatedAt'>,
   ) {

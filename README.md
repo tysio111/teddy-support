@@ -5,6 +5,7 @@
 ## Table of Contents <!-- omit in toc -->
 
 - [Features](#features)
+- [Deployment model](#deployment-model)
 - [Intent recognition](#intent-recognition)
 
 ## Features
@@ -23,9 +24,13 @@
 - [x] Docker.
 - [x] CI (Github Actions).
 
+## Deployment model
+
+The app is single-tenant: each customer gets its own app instance and its own database, configured through that instance's `.env`. There is no company scoping in the code; access is controlled by the global roles (`admin` manages actions, action parameters and resources; `admin` and `user` handle clients, conversations and messages). Per-customer settings such as `INTENT_DEFAULT_CONFIDENCE_THRESHOLD` are environment variables.
+
 ## Intent recognition
 
-Every client message runs through a [LangGraph](https://langchain-ai.github.io/langgraphjs/) state machine ([src/intent-recognition/graph](src/intent-recognition/graph/intent-graph.service.ts)) that detects what the client wants, collects the parameters, and calls the company's HTTP action.
+Every client message runs through a [LangGraph](https://langchain-ai.github.io/langgraphjs/) state machine ([src/intent-recognition/graph](src/intent-recognition/graph/intent-graph.service.ts)) that detects what the client wants, collects the parameters, and calls the matching HTTP action.
 
 ```mermaid
 flowchart TD

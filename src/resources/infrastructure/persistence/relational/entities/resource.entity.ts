@@ -1,17 +1,13 @@
 import { FileEntity } from '../../../../../files/infrastructure/persistence/relational/entities/file.entity';
 
-import { CompanyEntity } from '../../../../../companies/infrastructure/persistence/relational/entities/company.entity';
-
 import {
   CreateDateColumn,
   Entity,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
-  ManyToOne,
   Column,
   JoinColumn,
   OneToOne,
-  Index,
 } from 'typeorm';
 import { EntityRelationalHelper } from '../../../../../utils/relational-entity-helper';
 
@@ -52,10 +48,6 @@ export class ResourceEntity extends EntityRelationalHelper {
     type: String,
   })
   title: string;
-
-  @Index()
-  @ManyToOne(() => CompanyEntity, { eager: true, nullable: false })
-  company: CompanyEntity;
 
   @PrimaryGeneratedColumn('uuid')
   id: string;

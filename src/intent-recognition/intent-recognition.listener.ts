@@ -42,7 +42,6 @@ export class IntentRecognitionListener {
     await this.withConversationLock(event.conversationId, () =>
       this.process({
         messageId: event.messageId,
-        companyId: event.companyId,
         conversationId: event.conversationId,
       }),
     );

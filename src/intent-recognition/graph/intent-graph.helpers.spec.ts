@@ -1,6 +1,5 @@
 import { Action } from '../../actions/domain/action';
 import { ActionParameter } from '../../action-parameters/domain/action-parameter';
-import { Company } from '../../companies/domain/company';
 import { ActionExecutionResult } from '../execution/action-executor.service';
 import { ConfirmationAnswerEnum } from '../intent-recognition.types';
 import {
@@ -143,27 +142,12 @@ describe('isTransientError', () => {
 });
 
 describe('resolveConfidenceThreshold', () => {
-  it('should prefer action, then company, then default', () => {
+  it('should prefer action, then default', () => {
     expect(
-      resolveConfidenceThreshold(
-        { confidenceThreshold: 0.9 } as Action,
-        { confidenceThreshold: 0.8 } as Company,
-        0.7,
-      ),
+      resolveConfidenceThreshold({ confidenceThreshold: 0.9 } as Action, 0.7),
     ).toBe(0.9);
     expect(
-      resolveConfidenceThreshold(
-        { confidenceThreshold: null } as Action,
-        { confidenceThreshold: 0.8 } as Company,
-        0.7,
-      ),
-    ).toBe(0.8);
-    expect(
-      resolveConfidenceThreshold(
-        { confidenceThreshold: null } as Action,
-        { confidenceThreshold: null } as Company,
-        0.7,
-      ),
+      resolveConfidenceThreshold({ confidenceThreshold: null } as Action, 0.7),
     ).toBe(0.7);
   });
 });

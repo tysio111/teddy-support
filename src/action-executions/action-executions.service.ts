@@ -14,7 +14,6 @@ import { UpdateActionExecutionDto } from './dto/update-action-execution.dto';
 import { ActionExecutionRepository } from './infrastructure/persistence/action-execution.repository';
 import { IPaginationOptions } from '../utils/types/pagination-options';
 import { ActionExecution } from './domain/action-execution';
-import { JwtPayloadType } from '../auth/strategies/types/jwt-payload.type';
 
 @Injectable()
 export class ActionExecutionsService {
@@ -27,10 +26,7 @@ export class ActionExecutionsService {
     private readonly actionExecutionRepository: ActionExecutionRepository,
   ) {}
 
-  async create(
-    currentUser: JwtPayloadType,
-    createActionExecutionDto: CreateActionExecutionDto,
-  ) {
+  async create(createActionExecutionDto: CreateActionExecutionDto) {
     // Do not remove comment below.
     // <creating-property />
 
@@ -39,7 +35,6 @@ export class ActionExecutionsService {
     if (createActionExecutionDto.action) {
       const actionObject = await this.actionService.findById(
         createActionExecutionDto.action.id,
-        currentUser,
       );
       if (!actionObject) {
         throw new UnprocessableEntityException({
@@ -113,7 +108,7 @@ export class ActionExecutionsService {
 
   async update(
     id: ActionExecution['id'],
-    currentUser: JwtPayloadType,
+
     updateActionExecutionDto: UpdateActionExecutionDto,
   ) {
     // Do not remove comment below.
@@ -124,7 +119,6 @@ export class ActionExecutionsService {
     if (updateActionExecutionDto.action) {
       const actionObject = await this.actionService.findById(
         updateActionExecutionDto.action.id,
-        currentUser,
       );
       if (!actionObject) {
         throw new UnprocessableEntityException({

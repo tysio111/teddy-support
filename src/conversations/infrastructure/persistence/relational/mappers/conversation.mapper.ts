@@ -2,8 +2,6 @@ import { Conversation } from '../../../../domain/conversation';
 
 import { ClientMapper } from '../../../../../clients/infrastructure/persistence/relational/mappers/client.mapper';
 
-import { CompanyMapper } from '../../../../../companies/infrastructure/persistence/relational/mappers/company.mapper';
-
 import { ConversationEntity } from '../entities/conversation.entity';
 
 export class ConversationMapper {
@@ -19,10 +17,6 @@ export class ConversationMapper {
       domainEntity.client = ClientMapper.toDomain(raw.client);
     } else if (raw.client === null) {
       domainEntity.client = null;
-    }
-
-    if (raw.company) {
-      domainEntity.company = CompanyMapper.toDomain(raw.company);
     }
 
     domainEntity.id = raw.id;
@@ -46,12 +40,6 @@ export class ConversationMapper {
       );
     } else if (domainEntity.client === null) {
       persistenceEntity.client = null;
-    }
-
-    if (domainEntity.company) {
-      persistenceEntity.company = CompanyMapper.toPersistence(
-        domainEntity.company,
-      );
     }
 
     if (domainEntity.id) {

@@ -1,15 +1,6 @@
-import { CompanyDto } from '../../companies/dto/company.dto';
-
-import {
-  // decorators here
-  Type,
-} from 'class-transformer';
-
 import {
   // decorators here
 
-  ValidateNested,
-  IsNotEmptyObject,
   IsString,
   IsOptional,
   IsNumber,
@@ -87,15 +78,6 @@ export class CreateActionDto {
   })
   @IsString()
   name: string;
-
-  @ApiProperty({
-    required: true,
-    type: () => CompanyDto,
-  })
-  @ValidateNested()
-  @Type(() => CompanyDto)
-  @IsNotEmptyObject()
-  company: CompanyDto;
 
   // Don't forget to use the class-validator decorators in the DTO properties.
 }

@@ -1,7 +1,5 @@
 import { Action } from '../../../../domain/action';
 
-import { CompanyMapper } from '../../../../../companies/infrastructure/persistence/relational/mappers/company.mapper';
-
 import { ActionEntity } from '../entities/action.entity';
 
 export class ActionMapper {
@@ -24,10 +22,6 @@ export class ActionMapper {
     domainEntity.description = raw.description;
 
     domainEntity.name = raw.name;
-
-    if (raw.company) {
-      domainEntity.company = CompanyMapper.toDomain(raw.company);
-    }
 
     domainEntity.id = raw.id;
     domainEntity.createdAt = raw.createdAt;
@@ -55,12 +49,6 @@ export class ActionMapper {
     persistenceEntity.description = domainEntity.description;
 
     persistenceEntity.name = domainEntity.name;
-
-    if (domainEntity.company) {
-      persistenceEntity.company = CompanyMapper.toPersistence(
-        domainEntity.company,
-      );
-    }
 
     if (domainEntity.id) {
       persistenceEntity.id = domainEntity.id;

@@ -1,7 +1,5 @@
 import { ClientEntity } from '../../../../../clients/infrastructure/persistence/relational/entities/client.entity';
 
-import { CompanyEntity } from '../../../../../companies/infrastructure/persistence/relational/entities/company.entity';
-
 import {
   CreateDateColumn,
   Entity,
@@ -9,7 +7,6 @@ import {
   UpdateDateColumn,
   ManyToOne,
   Column,
-  Index,
 } from 'typeorm';
 import { EntityRelationalHelper } from '../../../../../utils/relational-entity-helper';
 
@@ -37,10 +34,6 @@ export class ConversationEntity extends EntityRelationalHelper {
 
   @ManyToOne(() => ClientEntity, { eager: true, nullable: true })
   client?: ClientEntity | null;
-
-  @Index()
-  @ManyToOne(() => CompanyEntity, { eager: true, nullable: false })
-  company: CompanyEntity;
 
   @PrimaryGeneratedColumn('uuid')
   id: string;

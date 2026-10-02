@@ -44,12 +44,11 @@ describe('IntentRecognitionListener', () => {
 
   const input = {
     messageId: 'message-1',
-    companyId: 'company-1',
     conversationId: 'conversation-1',
   };
 
   const event = (sender: string) =>
-    new MessageCreatedEvent('message-1', 'conversation-1', 'company-1', sender);
+    new MessageCreatedEvent('message-1', 'conversation-1', sender);
 
   it('should run the intent graph for client messages', async () => {
     const { eventEmitter, intentGraphService } = await setup();
@@ -123,12 +122,7 @@ describe('IntentRecognitionListener', () => {
     eventEmitter.emit(MESSAGE_CREATED_EVENT, event('client'));
     eventEmitter.emit(
       MESSAGE_CREATED_EVENT,
-      new MessageCreatedEvent(
-        'message-2',
-        'conversation-1',
-        'company-1',
-        'client',
-      ),
+      new MessageCreatedEvent('message-2', 'conversation-1', 'client'),
     );
     await new Promise((resolve) => setTimeout(resolve, 50));
 

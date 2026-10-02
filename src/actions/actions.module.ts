@@ -1,4 +1,3 @@
-import { CompaniesModule } from '../companies/companies.module';
 import {
   // do not remove this comment
   Module,
@@ -9,8 +8,6 @@ import { RelationalActionPersistenceModule } from './infrastructure/persistence/
 
 @Module({
   imports: [
-    CompaniesModule,
-
     // do not remove this comment
     RelationalActionPersistenceModule,
   ],

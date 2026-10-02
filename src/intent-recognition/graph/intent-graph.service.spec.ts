@@ -3,7 +3,6 @@ import { ConfigService } from '@nestjs/config';
 import { MemorySaver } from '@langchain/langgraph';
 import { Action } from '../../actions/domain/action';
 import { ActionParameter } from '../../action-parameters/domain/action-parameter';
-import { Company } from '../../companies/domain/company';
 import { Message } from '../../messages/domain/message';
 import { ActionExecutionResult } from '../execution/action-executor.service';
 import { CircuitStateEnum } from '../execution/circuit-breaker.service';
@@ -12,8 +11,7 @@ import { buildIntentGraph } from './intent-graph';
 import { IntentGraphDeps } from './intent-graph.deps';
 import { IntentGraphService } from './intent-graph.service';
 
-const company = { id: 'company-1', confidenceThreshold: null } as Company;
-const conversation = { id: 'conversation-1', company };
+const conversation = { id: 'conversation-1' };
 
 const message = {
   id: 'message-1',
@@ -106,7 +104,7 @@ function createService(configOverrides: Record<string, unknown> = {}) {
       getOrThrow: jest.fn().mockReturnValue(config),
     },
     messagesService: {
-      findByIdUnscoped: jest
+      findById: jest
         .fn()
         .mockImplementation((id: string) =>
           Promise.resolve(messages.get(id) ?? null),
@@ -121,10 +119,8 @@ function createService(configOverrides: Record<string, unknown> = {}) {
         ),
     },
     actionsService: {
-      findActiveByCompanyId: jest
-        .fn()
-        .mockResolvedValue([orderAction, refundAction]),
-      findByIdUnscoped: jest
+      findActive: jest.fn().mockResolvedValue([orderAction, refundAction]),
+      findById: jest
         .fn()
         .mockImplementation((id: string) =>
           Promise.resolve(
@@ -190,7 +186,6 @@ function createService(configOverrides: Record<string, unknown> = {}) {
     messages.set(id, clientMessage(id, content));
     return {
       messageId: id,
-      companyId: company.id,
       conversationId: conversation.id,
     };
   };
@@ -200,7 +195,6 @@ function createService(configOverrides: Record<string, unknown> = {}) {
 
 const input = {
   messageId: message.id,
-  companyId: company.id,
   conversationId: conversation.id,
 };
 
@@ -236,18 +230,18 @@ describe('IntentGraphService', () => {
   );
 
   describe('context and screening', () => {
-    it('should skip messages that do not belong to the company', async () => {
+    it('should skip messages that no longer exist', async () => {
       const { service, deps } = createService();
 
-      const state = await service.run({ ...input, companyId: 'other' });
+      const state = await service.run({ ...input, messageId: 'missing' });
 
       expect(state.outcome).toBe(IntentOutcomeEnum.skipped);
       expect(deps.intentLlmService.classify).not.toHaveBeenCalled();
     });
 
-    it('should end when the company has no active actions', async () => {
+    it('should end when there are no active actions', async () => {
       const { service, deps } = createService();
-      deps.actionsService.findActiveByCompanyId.mockResolvedValue([]);
+      deps.actionsService.findActive.mockResolvedValue([]);
 
       const state = await service.run(input);
 
@@ -687,10 +681,8 @@ describe('IntentGraphService', () => {
         const context = createService();
         const { deps } = context;
         const confirmedAction = { ...refundAction, requiresConfirmation: true };
-        deps.actionsService.findActiveByCompanyId.mockResolvedValue([
-          confirmedAction,
-        ]);
-        deps.actionsService.findByIdUnscoped.mockResolvedValue(confirmedAction);
+        deps.actionsService.findActive.mockResolvedValue([confirmedAction]);
+        deps.actionsService.findById.mockResolvedValue(confirmedAction);
         classifyAs(deps, [confirmedAction, 0.9]);
         deps.intentLlmService.extractParameters.mockResolvedValue({
           email: 'john@example.com',

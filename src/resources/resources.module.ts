@@ -1,5 +1,4 @@
 import { FilesModule } from '../files/files.module';
-import { CompaniesModule } from '../companies/companies.module';
 import {
   // do not remove this comment
   Module,
@@ -11,8 +10,6 @@ import { RelationalResourcePersistenceModule } from './infrastructure/persistenc
 @Module({
   imports: [
     FilesModule,
-
-    CompaniesModule,
 
     // do not remove this comment
     RelationalResourcePersistenceModule,

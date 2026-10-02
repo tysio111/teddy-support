@@ -7,7 +7,6 @@ import { Conversation } from '../../../../domain/conversation';
 import { ConversationRepository } from '../../conversation.repository';
 import { ConversationMapper } from '../mappers/conversation.mapper';
 import { IPaginationOptions } from '../../../../../utils/types/pagination-options';
-import { Company } from '../../../../../companies/domain/company';
 
 @Injectable()
 export class ConversationRelationalRepository implements ConversationRepository {
@@ -26,15 +25,12 @@ export class ConversationRelationalRepository implements ConversationRepository 
 
   async findAllWithPagination({
     paginationOptions,
-    companyId,
   }: {
     paginationOptions: IPaginationOptions;
-    companyId?: Company['id'];
   }): Promise<Conversation[]> {
     const entities = await this.conversationRepository.find({
       skip: (paginationOptions.page - 1) * paginationOptions.limit,
       take: paginationOptions.limit,
-      where: companyId ? { company: { id: companyId } } : undefined,
     });
 
     return entities.map((entity) => ConversationMapper.toDomain(entity));

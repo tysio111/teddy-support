@@ -7,7 +7,6 @@ import { Client } from '../../../../domain/client';
 import { ClientRepository } from '../../client.repository';
 import { ClientMapper } from '../mappers/client.mapper';
 import { IPaginationOptions } from '../../../../../utils/types/pagination-options';
-import { Company } from '../../../../../companies/domain/company';
 
 @Injectable()
 export class ClientRelationalRepository implements ClientRepository {
@@ -26,15 +25,12 @@ export class ClientRelationalRepository implements ClientRepository {
 
   async findAllWithPagination({
     paginationOptions,
-    companyId,
   }: {
     paginationOptions: IPaginationOptions;
-    companyId?: Company['id'];
   }): Promise<Client[]> {
     const entities = await this.clientRepository.find({
       skip: (paginationOptions.page - 1) * paginationOptions.limit,
       take: paginationOptions.limit,
-      where: companyId ? { company: { id: companyId } } : undefined,
     });
 
     return entities.map((entity) => ClientMapper.toDomain(entity));

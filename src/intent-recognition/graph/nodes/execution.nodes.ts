@@ -41,7 +41,7 @@ export function executeAction({
   return async (state: IntentGraphStateType): Promise<IntentGraphUpdate> => {
     const actionId = state.topCatalogAction!.action.id;
     // Loaded just in time so credentials never enter the checkpointed state.
-    const action = await actionsService.findByIdUnscoped(actionId);
+    const action = await actionsService.findById(actionId);
     if (!action) {
       throw new Error(`Action ${actionId} no longer exists`);
     }

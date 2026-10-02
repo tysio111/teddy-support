@@ -4,7 +4,6 @@ export class MessageCreatedEvent {
   constructor(
     public readonly messageId: string,
     public readonly conversationId: string,
-    public readonly companyId: string,
     public readonly sender: string,
   ) {}
 }

@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { Action } from '../../actions/domain/action';
 import { ActionParameter } from '../../action-parameters/domain/action-parameter';
-import { Company } from '../../companies/domain/company';
 import { DetectedIntent } from '../../detected-intents/domain/detected-intent';
 import { Message } from '../../messages/domain/message';
 import { IntentRecognitionConfig } from '../config/intent-recognition-config.type';
@@ -19,14 +18,9 @@ import { IntentGraphStateType } from './intent-graph.state';
 
 export function resolveConfidenceThreshold(
   action: Action,
-  company: Company | undefined,
   defaultThreshold: number,
 ): number {
-  return (
-    action.confidenceThreshold ??
-    company?.confidenceThreshold ??
-    defaultThreshold
-  );
+  return action.confidenceThreshold ?? defaultThreshold;
 }
 
 // Keeps only catalog actions (guards against hallucinated ids), one entry per
