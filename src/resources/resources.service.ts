@@ -1,4 +1,5 @@
 import { FilesService } from '../files/files.service';
+import { ResourceStatusEnum } from './resource-status.enum';
 import { FileType } from '../files/domain/file';
 
 import {
@@ -48,9 +49,11 @@ export class ResourcesService {
     return this.resourceRepository.create({
       // Do not remove comment below.
       // <creating-property-payload />
+      extractionError: createResourceDto.extractionError,
+
       vectorRef: createResourceDto.vectorRef,
 
-      status: createResourceDto.status,
+      status: createResourceDto.status ?? ResourceStatusEnum.uploaded,
 
       sourceUrl: createResourceDto.sourceUrl,
 
@@ -113,6 +116,8 @@ export class ResourcesService {
     return this.resourceRepository.update(id, {
       // Do not remove comment below.
       // <updating-property-payload />
+      extractionError: updateResourceDto.extractionError,
+
       vectorRef: updateResourceDto.vectorRef,
 
       status: updateResourceDto.status,

@@ -4,6 +4,7 @@ import { DatabaseConfig } from '../database/config/database-config.type';
 import { FileConfig } from '../files/config/file-config.type';
 import { MailConfig } from '../mail/config/mail-config.type';
 import { IntentRecognitionConfig } from '../intent-recognition/config/intent-recognition-config.type';
+import { DocExtractionConfig } from '../doc-extraction/config/doc-extraction-config.type';
 
 export type AllConfigType = {
   app: AppConfig;
@@ -12,4 +13,5 @@ export type AllConfigType = {
   file: FileConfig;
   mail: MailConfig;
   intentRecognition: IntentRecognitionConfig;
+  docExtraction: DocExtractionConfig;
 };

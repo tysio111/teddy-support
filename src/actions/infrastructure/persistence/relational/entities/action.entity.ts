@@ -1,9 +1,12 @@
+import { ResourceEntity } from '../../../../../resources/infrastructure/persistence/relational/entities/resource.entity';
+
 import {
   CreateDateColumn,
   Entity,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
   Column,
+  ManyToOne,
 } from 'typeorm';
 import { EntityRelationalHelper } from '../../../../../utils/relational-entity-helper';
 
@@ -11,6 +14,14 @@ import { EntityRelationalHelper } from '../../../../../utils/relational-entity-h
   name: 'action',
 })
 export class ActionEntity extends EntityRelationalHelper {
+  @ManyToOne(() => ResourceEntity, {
+    eager: false,
+    nullable: true,
+    // Actions outlive the document they were extracted from.
+    onDelete: 'SET NULL',
+  })
+  resource?: ResourceEntity | null;
+
   @Column({
     nullable: false,
     type: Boolean,

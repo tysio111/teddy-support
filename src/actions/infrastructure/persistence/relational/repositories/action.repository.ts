@@ -4,7 +4,7 @@ import { Repository, In } from 'typeorm';
 import { ActionEntity } from '../entities/action.entity';
 import { NullableType } from '../../../../../utils/types/nullable.type';
 import { Action } from '../../../../domain/action';
-import { ActionRepository } from '../../action.repository';
+import { ActionFilterOptions, ActionRepository } from '../../action.repository';
 import { ActionMapper } from '../mappers/action.mapper';
 import { IPaginationOptions } from '../../../../../utils/types/pagination-options';
 
@@ -25,10 +25,18 @@ export class ActionRelationalRepository implements ActionRepository {
 
   async findAllWithPagination({
     paginationOptions,
+    filterOptions,
   }: {
     paginationOptions: IPaginationOptions;
+    filterOptions?: ActionFilterOptions;
   }): Promise<Action[]> {
     const entities = await this.actionRepository.find({
+      where: {
+        status: filterOptions?.status,
+        resource: filterOptions?.resourceId
+          ? { id: filterOptions.resourceId }
+          : undefined,
+      },
       skip: (paginationOptions.page - 1) * paginationOptions.limit,
       take: paginationOptions.limit,
     });
@@ -55,6 +63,17 @@ export class ActionRelationalRepository implements ActionRepository {
   async findByStatus(status: Action['status']): Promise<Action[]> {
     const entities = await this.actionRepository.find({
       where: { status },
+    });
+
+    return entities.map((entity) => ActionMapper.toDomain(entity));
+  }
+
+  async findByResourceId(
+    resourceId: NonNullable<Action['resource']>['id'],
+    status: Action['status'],
+  ): Promise<Action[]> {
+    const entities = await this.actionRepository.find({
+      where: { resource: { id: resourceId }, status },
     });
 
     return entities.map((entity) => ActionMapper.toDomain(entity));

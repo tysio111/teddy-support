@@ -129,4 +129,8 @@ export class ActionParametersService {
   remove(id: ActionParameter['id']) {
     return this.actionParameterRepository.remove(id);
   }
+
+  removeByActionIds(actionIds: Action['id'][]) {
+    return this.actionParameterRepository.removeByActionIds(actionIds);
+  }
 }

@@ -4,10 +4,20 @@ import { FileType } from '../../files/domain/file';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class Resource {
+  // Read-only: set by action extraction.
+  @ApiProperty({
+    type: () => String,
+    nullable: true,
+  })
+  extractionError?: string | null;
+
   @Exclude({ toPlainOnly: true })
   vectorRef?: string | null;
 
-  @Exclude({ toPlainOnly: true })
+  // Read-only: see ResourceStatusEnum.
+  @ApiProperty({
+    type: () => String,
+  })
   status?: string;
 
   @ApiProperty({

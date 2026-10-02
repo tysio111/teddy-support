@@ -56,6 +56,47 @@ describe('ActionExecutorService', () => {
     });
   });
 
+  it('should fill path placeholders and send the rest as query', async () => {
+    await service.execute(
+      createAction({
+        endpointUrl: 'https://example.com/orders/{orderId}/items',
+      }),
+      { orderId: 'A 1', status: 'open' },
+    );
+
+    expect(lastRequest().url).toBe(
+      'https://example.com/orders/A%201/items?status=open',
+    );
+  });
+
+  it('should keep path parameters out of the JSON body', async () => {
+    await service.execute(
+      createAction({
+        endpointUrl: 'https://example.com/orders/{orderId}',
+        httpMethod: 'PATCH',
+      }),
+      { orderId: '123', address: 'Main St' },
+    );
+
+    const { url, init } = lastRequest();
+    expect(url).toBe('https://example.com/orders/123');
+    expect(init.body).toBe('{"address":"Main St"}');
+  });
+
+  it('should fail without retry when a path parameter is missing', async () => {
+    const result = await service.execute(
+      createAction({ endpointUrl: 'https://example.com/orders/{orderId}' }),
+      { orderId: null },
+    );
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      success: false,
+      retryable: false,
+      errorMessage: 'Missing value for path parameter orderId',
+    });
+  });
+
   it('should send POST parameters as JSON body', async () => {
     await service.execute(createAction({ httpMethod: 'post' }), {
       amount: 10,

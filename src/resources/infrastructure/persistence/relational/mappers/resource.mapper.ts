@@ -7,6 +7,8 @@ import { ResourceEntity } from '../entities/resource.entity';
 export class ResourceMapper {
   static toDomain(raw: ResourceEntity): Resource {
     const domainEntity = new Resource();
+    domainEntity.extractionError = raw.extractionError;
+
     domainEntity.vectorRef = raw.vectorRef;
 
     domainEntity.status = raw.status;
@@ -32,6 +34,8 @@ export class ResourceMapper {
 
   static toPersistence(domainEntity: Resource): ResourceEntity {
     const persistenceEntity = new ResourceEntity();
+    persistenceEntity.extractionError = domainEntity.extractionError;
+
     persistenceEntity.vectorRef = domainEntity.vectorRef;
 
     persistenceEntity.status = domainEntity.status;

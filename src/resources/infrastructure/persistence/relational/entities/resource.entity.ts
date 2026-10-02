@@ -19,6 +19,12 @@ export class ResourceEntity extends EntityRelationalHelper {
     nullable: true,
     type: String,
   })
+  extractionError?: string | null;
+
+  @Column({
+    nullable: true,
+    type: String,
+  })
   vectorRef?: string | null;
 
   @Column({

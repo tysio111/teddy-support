@@ -1,3 +1,4 @@
+import { ResourcesModule } from '../resources/resources.module';
 import {
   // do not remove this comment
   Module,
@@ -8,6 +9,8 @@ import { RelationalActionPersistenceModule } from './infrastructure/persistence/
 
 @Module({
   imports: [
+    ResourcesModule,
+
     // do not remove this comment
     RelationalActionPersistenceModule,
   ],

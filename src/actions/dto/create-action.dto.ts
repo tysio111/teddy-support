@@ -1,3 +1,5 @@
+import { ResourceDto } from '../../resources/dto/resource.dto';
+
 import {
   // decorators here
 
@@ -5,6 +7,8 @@ import {
   IsOptional,
   IsNumber,
   IsBoolean,
+  ValidateNested,
+  IsNotEmptyObject,
 } from 'class-validator';
 
 import {
@@ -12,7 +16,22 @@ import {
   ApiProperty,
 } from '@nestjs/swagger';
 
+import {
+  // decorators here
+  Type,
+} from 'class-transformer';
+
 export class CreateActionDto {
+  @ApiProperty({
+    required: false,
+    type: () => ResourceDto,
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ResourceDto)
+  @IsNotEmptyObject()
+  resource?: ResourceDto | null;
+
   @ApiProperty({
     required: false,
     type: () => Boolean,

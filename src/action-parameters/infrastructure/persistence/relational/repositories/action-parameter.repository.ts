@@ -95,4 +95,14 @@ export class ActionParameterRelationalRepository implements ActionParameterRepos
   async remove(id: ActionParameter['id']): Promise<void> {
     await this.actionParameterRepository.delete(id);
   }
+
+  async removeByActionIds(actionIds: Action['id'][]): Promise<void> {
+    if (!actionIds.length) {
+      return;
+    }
+
+    await this.actionParameterRepository.delete({
+      action: { id: In(actionIds) },
+    });
+  }
 }

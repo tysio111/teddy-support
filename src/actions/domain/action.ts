@@ -1,6 +1,14 @@
+import { Resource } from '../../resources/domain/resource';
+
 import { ApiProperty } from '@nestjs/swagger';
 
 export class Action {
+  @ApiProperty({
+    type: () => Resource,
+    nullable: true,
+  })
+  resource?: Resource | null;
+
   @ApiProperty({
     type: () => Boolean,
     nullable: false,

@@ -72,6 +72,25 @@ export function parseRetryAfter(
   return Number.isNaN(date) ? null : Math.max(0, date - now);
 }
 
+// Fills `{name}` placeholders in the endpoint URL (e.g. /orders/{orderId}) and
+// returns the parameters that were not used, which go to the query or body.
+export function fillPathParameters(
+  endpointUrl: string,
+  params: Record<string, unknown>,
+): { url: string; remaining: Record<string, unknown> } {
+  const remaining = { ...params };
+  const url = endpointUrl.replace(/\{(\w+)\}/g, (placeholder, name: string) => {
+    if (!(name in remaining)) {
+      throw new ConfigurationError(`Missing value for path parameter ${name}`);
+    }
+    const value = remaining[name];
+    delete remaining[name];
+    return encodeURIComponent(String(value));
+  });
+
+  return { url, remaining };
+}
+
 // A misconfigured action (bad URL, protocol or auth type): retrying cannot help.
 class ConfigurationError extends Error {}
 
@@ -104,7 +123,8 @@ export class ActionExecutorService {
     const executedAt = new Date();
 
     try {
-      const url = new URL(action.endpointUrl);
+      const filled = fillPathParameters(action.endpointUrl, params);
+      const url = new URL(filled.url);
       if (url.protocol !== 'http:' && url.protocol !== 'https:') {
         throw new ConfigurationError(
           `Unsupported endpoint protocol: ${url.protocol}`,
@@ -122,12 +142,12 @@ export class ActionExecutorService {
       let body: string | undefined;
 
       if (METHODS_WITHOUT_BODY.includes(method)) {
-        for (const [key, value] of Object.entries(params)) {
+        for (const [key, value] of Object.entries(filled.remaining)) {
           url.searchParams.set(key, String(value));
         }
       } else {
         headers['Content-Type'] = 'application/json';
-        body = JSON.stringify(params);
+        body = JSON.stringify(filled.remaining);
       }
 
       const response = await fetch(url, {

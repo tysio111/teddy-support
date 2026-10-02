@@ -69,6 +69,10 @@ export class ActionsController {
           page,
           limit,
         },
+        filterOptions: {
+          status: query?.status,
+          resourceId: query?.resourceId,
+        },
       }),
       { page, limit },
     );

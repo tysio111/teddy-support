@@ -3,6 +3,11 @@ import { NullableType } from '../../../utils/types/nullable.type';
 import { IPaginationOptions } from '../../../utils/types/pagination-options';
 import { Action } from '../../domain/action';
 
+export type ActionFilterOptions = {
+  status?: Action['status'];
+  resourceId?: NonNullable<Action['resource']>['id'];
+};
+
 export abstract class ActionRepository {
   abstract create(
     data: Omit<Action, 'id' | 'createdAt' | 'updatedAt'>,
@@ -10,8 +15,10 @@ export abstract class ActionRepository {
 
   abstract findAllWithPagination({
     paginationOptions,
+    filterOptions,
   }: {
     paginationOptions: IPaginationOptions;
+    filterOptions?: ActionFilterOptions;
   }): Promise<Action[]>;
 
   abstract findById(id: Action['id']): Promise<NullableType<Action>>;
@@ -19,6 +26,11 @@ export abstract class ActionRepository {
   abstract findByIds(ids: Action['id'][]): Promise<Action[]>;
 
   abstract findByStatus(status: Action['status']): Promise<Action[]>;
+
+  abstract findByResourceId(
+    resourceId: NonNullable<Action['resource']>['id'],
+    status: Action['status'],
+  ): Promise<Action[]>;
 
   abstract update(
     id: Action['id'],

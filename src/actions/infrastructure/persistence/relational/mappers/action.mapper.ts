@@ -1,10 +1,17 @@
 import { Action } from '../../../../domain/action';
+import { ResourceMapper } from '../../../../../resources/infrastructure/persistence/relational/mappers/resource.mapper';
 
 import { ActionEntity } from '../entities/action.entity';
 
 export class ActionMapper {
   static toDomain(raw: ActionEntity): Action {
     const domainEntity = new Action();
+    if (raw.resource) {
+      domainEntity.resource = ResourceMapper.toDomain(raw.resource);
+    } else if (raw.resource === null) {
+      domainEntity.resource = null;
+    }
+
     domainEntity.requiresConfirmation = raw.requiresConfirmation;
 
     domainEntity.status = raw.status;
@@ -32,6 +39,14 @@ export class ActionMapper {
 
   static toPersistence(domainEntity: Action): ActionEntity {
     const persistenceEntity = new ActionEntity();
+    if (domainEntity.resource) {
+      persistenceEntity.resource = ResourceMapper.toPersistence(
+        domainEntity.resource,
+      );
+    } else if (domainEntity.resource === null) {
+      persistenceEntity.resource = null;
+    }
+
     persistenceEntity.requiresConfirmation = domainEntity.requiresConfirmation;
 
     persistenceEntity.status = domainEntity.status;

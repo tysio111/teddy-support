@@ -31,4 +31,6 @@ export abstract class ActionParameterRepository {
   ): Promise<ActionParameter | null>;
 
   abstract remove(id: ActionParameter['id']): Promise<void>;
+
+  abstract removeByActionIds(actionIds: Action['id'][]): Promise<void>;
 }
