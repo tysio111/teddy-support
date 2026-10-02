@@ -4,7 +4,11 @@ import { Repository, In } from 'typeorm';
 import { ActionExecutionEntity } from '../entities/action-execution.entity';
 import { NullableType } from '../../../../../utils/types/nullable.type';
 import { ActionExecution } from '../../../../domain/action-execution';
-import { ActionExecutionRepository } from '../../action-execution.repository';
+import {
+  ActionExecutionRepository,
+  ActionExecutionStats,
+} from '../../action-execution.repository';
+import { ActionExecutionStatusEnum } from '../../../../action-execution-status.enum';
 import { ActionExecutionMapper } from '../mappers/action-execution.mapper';
 import { IPaginationOptions } from '../../../../../utils/types/pagination-options';
 
@@ -52,6 +56,37 @@ export class ActionExecutionRelationalRepository implements ActionExecutionRepos
     });
 
     return entities.map((entity) => ActionExecutionMapper.toDomain(entity));
+  }
+
+  async getRecentStatsByActionId(
+    actionId: NonNullable<ActionExecution['action']>['id'],
+    since: Date,
+  ): Promise<ActionExecutionStats> {
+    const row = await this.actionExecutionRepository
+      .createQueryBuilder('execution')
+      .select('COUNT(*)', 'total')
+      .addSelect(
+        'COUNT(*) FILTER (WHERE "execution"."status" = :failed)',
+        'failed',
+      )
+      .addSelect(
+        'MAX("execution"."createdAt") FILTER (WHERE "execution"."status" = :failed)',
+        'lastFailedAt',
+      )
+      .where('"execution"."actionId" = :actionId', { actionId })
+      .andWhere('"execution"."createdAt" >= :since', { since })
+      .setParameter('failed', ActionExecutionStatusEnum.failed)
+      .getRawOne<{
+        total: string;
+        failed: string;
+        lastFailedAt: Date | null;
+      }>();
+
+    return {
+      total: Number(row?.total ?? 0),
+      failed: Number(row?.failed ?? 0),
+      lastFailedAt: row?.lastFailedAt ? new Date(row.lastFailedAt) : null,
+    };
   }
 
   async update(

@@ -182,6 +182,10 @@ export class DetectedIntentsService {
     return this.detectedIntentRepository.create(data);
   }
 
+  findByMessageId(messageId: NonNullable<DetectedIntent['message']>['id']) {
+    return this.detectedIntentRepository.findByMessageId(messageId);
+  }
+
   updateRecognitionResult(
     id: DetectedIntent['id'],
     payload: Pick<DetectedIntent, 'status' | 'extractedParameters'>,

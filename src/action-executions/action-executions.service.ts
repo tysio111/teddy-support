@@ -180,6 +180,17 @@ export class ActionExecutionsService {
     return this.actionExecutionRepository.create(data);
   }
 
+  // System context (used by the intent recognition circuit breaker).
+  getRecentStatsByActionId(
+    actionId: NonNullable<ActionExecution['action']>['id'],
+    since: Date,
+  ) {
+    return this.actionExecutionRepository.getRecentStatsByActionId(
+      actionId,
+      since,
+    );
+  }
+
   remove(id: ActionExecution['id']) {
     return this.actionExecutionRepository.remove(id);
   }

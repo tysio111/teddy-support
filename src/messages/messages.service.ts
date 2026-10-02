@@ -20,6 +20,7 @@ import {
   MESSAGE_CREATED_EVENT,
   MessageCreatedEvent,
 } from './events/message-created.event';
+import { MessageSenderEnum } from './message-sender.enum';
 
 @Injectable()
 export class MessagesService {
@@ -61,6 +62,28 @@ export class MessagesService {
 
       sender: createMessageDto.sender,
 
+      conversation,
+    });
+
+    this.eventEmitter.emit(
+      MESSAGE_CREATED_EVENT,
+      new MessageCreatedEvent(
+        message.id,
+        conversation.id,
+        conversation.company.id,
+        message.sender,
+      ),
+    );
+
+    return message;
+  }
+
+  // System context (used by intent recognition): the conversation is already
+  // resolved and verified, and bot messages never trigger intent recognition.
+  async createBotMessage(conversation: Conversation, content: string) {
+    const message = await this.messageRepository.create({
+      content,
+      sender: MessageSenderEnum.bot,
       conversation,
     });
 

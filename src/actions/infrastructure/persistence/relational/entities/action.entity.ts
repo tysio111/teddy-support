@@ -17,6 +17,13 @@ import { EntityRelationalHelper } from '../../../../../utils/relational-entity-h
 export class ActionEntity extends EntityRelationalHelper {
   @Column({
     nullable: false,
+    type: Boolean,
+    default: false,
+  })
+  requiresConfirmation?: boolean;
+
+  @Column({
+    nullable: false,
     type: String,
   })
   status: string;

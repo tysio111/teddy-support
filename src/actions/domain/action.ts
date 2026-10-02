@@ -4,6 +4,12 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class Action {
   @ApiProperty({
+    type: () => Boolean,
+    nullable: false,
+  })
+  requiresConfirmation?: boolean;
+
+  @ApiProperty({
     type: () => String,
     nullable: false,
   })

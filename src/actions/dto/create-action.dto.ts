@@ -13,6 +13,7 @@ import {
   IsString,
   IsOptional,
   IsNumber,
+  IsBoolean,
 } from 'class-validator';
 
 import {
@@ -21,6 +22,14 @@ import {
 } from '@nestjs/swagger';
 
 export class CreateActionDto {
+  @ApiProperty({
+    required: false,
+    type: () => Boolean,
+  })
+  @IsOptional()
+  @IsBoolean()
+  requiresConfirmation?: boolean;
+
   @ApiProperty({
     required: true,
     type: () => String,

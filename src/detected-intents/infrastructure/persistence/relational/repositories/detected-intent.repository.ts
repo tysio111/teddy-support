@@ -54,6 +54,17 @@ export class DetectedIntentRelationalRepository implements DetectedIntentReposit
     return entities.map((entity) => DetectedIntentMapper.toDomain(entity));
   }
 
+  async findByMessageId(
+    messageId: NonNullable<DetectedIntent['message']>['id'],
+  ): Promise<DetectedIntent[]> {
+    const entities = await this.detectedIntentRepository.find({
+      where: { message: { id: messageId } },
+      order: { rank: 'ASC' },
+    });
+
+    return entities.map((entity) => DetectedIntentMapper.toDomain(entity));
+  }
+
   async update(
     id: DetectedIntent['id'],
     payload: Partial<DetectedIntent>,

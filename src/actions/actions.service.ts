@@ -57,6 +57,8 @@ export class ActionsService {
     return this.actionRepository.create({
       // Do not remove comment below.
       // <creating-property-payload />
+      requiresConfirmation: createActionDto.requiresConfirmation,
+
       status: createActionDto.status,
 
       confidenceThreshold: createActionDto.confidenceThreshold,
@@ -115,6 +117,12 @@ export class ActionsService {
 
   // System context (no current user): callers must already have verified
   // company ownership.
+  findByIdUnscoped(id: Action['id']) {
+    return this.actionRepository.findById(id);
+  }
+
+  // System context (no current user): callers must already have verified
+  // company ownership.
   findActiveByCompanyId(companyId: Action['company']['id']) {
     return this.actionRepository.findByCompanyIdAndStatus(
       companyId,
@@ -136,6 +144,8 @@ export class ActionsService {
     return this.actionRepository.update(id, {
       // Do not remove comment below.
       // <updating-property-payload />
+      requiresConfirmation: updateActionDto.requiresConfirmation,
+
       status: updateActionDto.status,
 
       confidenceThreshold: updateActionDto.confidenceThreshold,

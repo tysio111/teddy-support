@@ -1,6 +1,10 @@
 import { ConfigService } from '@nestjs/config';
 import { Action } from '../../actions/domain/action';
-import { ActionExecutorService } from './action-executor.service';
+import {
+  ActionExecutorService,
+  isRetryableFailure,
+  parseRetryAfter,
+} from './action-executor.service';
 
 function createAction(overrides: Partial<Action> = {}): Action {
   return {
@@ -129,5 +133,81 @@ describe('ActionExecutorService', () => {
     expect(badProtocol.errorMessage).toContain('Unsupported endpoint protocol');
     expect(badAuth.errorMessage).toContain('Unsupported auth type');
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('should send the idempotency key', async () => {
+    await service.execute(
+      createAction({ httpMethod: 'POST' }),
+      {},
+      {
+        idempotencyKey: 'intent-1',
+      },
+    );
+
+    const { init } = lastRequest();
+    expect(init.headers).toMatchObject({ 'Idempotency-Key': 'intent-1' });
+  });
+
+  it('should mark retryable failures and honor Retry-After', async () => {
+    fetchMock.mockResolvedValue(
+      new Response('busy', { status: 503, headers: { 'Retry-After': '2' } }),
+    );
+
+    const result = await service.execute(createAction(), {});
+
+    expect(result).toMatchObject({ retryable: true, retryAfterMs: 2000 });
+  });
+
+  it('should not retry misconfigured actions', async () => {
+    const result = await service.execute(
+      createAction({ endpointUrl: 'file:///etc/passwd' }),
+      {},
+    );
+
+    expect(result.retryable).toBe(false);
+  });
+});
+
+describe('isRetryableFailure', () => {
+  it.each([
+    ['GET', 500, true],
+    ['GET', 408, true],
+    ['GET', 404, false],
+    ['PUT', 502, true],
+    // A POST may already have been processed by a failing server...
+    ['POST', 500, false],
+    ['POST', 504, false],
+    // ...but not when the server explicitly refused it.
+    ['POST', 503, true],
+    ['POST', 429, true],
+    ['POST', 400, false],
+  ])('%s with status %i → %s', (method, statusCode, expected) => {
+    expect(isRetryableFailure(method, { statusCode })).toBe(expected);
+  });
+
+  it('should retry any method when the request was never sent', () => {
+    const refused = Object.assign(new TypeError('fetch failed'), {
+      cause: { code: 'ECONNREFUSED' },
+    });
+
+    expect(isRetryableFailure('POST', { error: refused })).toBe(true);
+  });
+
+  it('should only retry timeouts for idempotent methods', () => {
+    const timeout = new DOMException('timed out', 'TimeoutError');
+
+    expect(isRetryableFailure('GET', { error: timeout })).toBe(true);
+    expect(isRetryableFailure('POST', { error: timeout })).toBe(false);
+  });
+});
+
+describe('parseRetryAfter', () => {
+  it('should parse seconds and HTTP dates', () => {
+    const now = Date.parse('2026-01-01T00:00:00Z');
+
+    expect(parseRetryAfter('3', now)).toBe(3000);
+    expect(parseRetryAfter('Thu, 01 Jan 2026 00:00:05 GMT', now)).toBe(5000);
+    expect(parseRetryAfter(null, now)).toBeNull();
+    expect(parseRetryAfter('soon', now)).toBeNull();
   });
 });

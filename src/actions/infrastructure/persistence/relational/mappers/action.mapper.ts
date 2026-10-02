@@ -7,6 +7,8 @@ import { ActionEntity } from '../entities/action.entity';
 export class ActionMapper {
   static toDomain(raw: ActionEntity): Action {
     const domainEntity = new Action();
+    domainEntity.requiresConfirmation = raw.requiresConfirmation;
+
     domainEntity.status = raw.status;
 
     domainEntity.confidenceThreshold = raw.confidenceThreshold;
@@ -36,6 +38,8 @@ export class ActionMapper {
 
   static toPersistence(domainEntity: Action): ActionEntity {
     const persistenceEntity = new ActionEntity();
+    persistenceEntity.requiresConfirmation = domainEntity.requiresConfirmation;
+
     persistenceEntity.status = domainEntity.status;
 
     persistenceEntity.confidenceThreshold = domainEntity.confidenceThreshold;

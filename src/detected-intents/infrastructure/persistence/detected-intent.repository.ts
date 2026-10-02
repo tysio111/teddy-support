@@ -20,6 +20,10 @@ export abstract class DetectedIntentRepository {
 
   abstract findByIds(ids: DetectedIntent['id'][]): Promise<DetectedIntent[]>;
 
+  abstract findByMessageId(
+    messageId: NonNullable<DetectedIntent['message']>['id'],
+  ): Promise<DetectedIntent[]>;
+
   abstract update(
     id: DetectedIntent['id'],
     payload: DeepPartial<DetectedIntent>,
