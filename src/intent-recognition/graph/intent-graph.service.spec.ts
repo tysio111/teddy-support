@@ -7,6 +7,10 @@ import { IntentRecognitionConfig } from '../config/intent-recognition-config.typ
 import { ActionExecutionResult } from '../execution/action-executor.service';
 import { CircuitStateEnum } from '../execution/circuit-breaker.service';
 import { IntentOutcomeEnum } from '../intent-recognition.types';
+import {
+  KnowledgeAnswer,
+  KnowledgeAnswerStatusEnum,
+} from '../../knowledge/knowledge.types';
 import { buildIntentGraph } from './intent-graph';
 import { IntentGraphDeps } from './intent-graph.deps';
 import { IntentGraphService } from './intent-graph.service';
@@ -79,11 +83,37 @@ function executionResult(
   };
 }
 
+function knowledgeAnswer(
+  overrides: Partial<KnowledgeAnswer> = {},
+): KnowledgeAnswer {
+  return {
+    status: KnowledgeAnswerStatusEnum.answered,
+    reply: 'Delivery to Germany takes 3-5 business days.',
+    citations: [
+      {
+        resourceId: 'resource-1',
+        resourceTitle: 'Shipping',
+        headingPath: ['Delivery times'],
+      },
+    ],
+    retrieval: {
+      rewrittenQuery: 'delivery time Germany',
+      hypotheticalAnswer: null,
+      candidates: 12,
+      chunks: [],
+    },
+    ...overrides,
+  };
+}
+
 function clientMessage(id: string, content: string): Message {
   return { id, content, sender: 'client', conversation } as Message;
 }
 
-function createService(configOverrides: Record<string, unknown> = {}) {
+function createService(
+  configOverrides: Record<string, unknown> = {},
+  { knowledgeEnabled = false } = {},
+) {
   const config = {
     historyLimit: 20,
     maxCandidates: 3,
@@ -162,6 +192,10 @@ function createService(configOverrides: Record<string, unknown> = {}) {
     },
     circuitBreakerService: {
       getState: jest.fn().mockResolvedValue(CircuitStateEnum.closed),
+    },
+    knowledgeService: {
+      enabled: knowledgeEnabled,
+      answer: jest.fn().mockResolvedValue(knowledgeAnswer()),
     },
   };
 
@@ -732,6 +766,157 @@ describe('IntentGraphService', () => {
     });
   });
 
+  describe('knowledge base', () => {
+    it('should answer unmatched messages from the knowledge base', async () => {
+      const { service, deps, reply } = createService(
+        {},
+        { knowledgeEnabled: true },
+      );
+      deps.intentLlmService.classify.mockResolvedValue([]);
+
+      const state = await service.run(
+        reply('message-2', 'How long does delivery to Germany take?'),
+      );
+
+      expect(state.outcome).toBe(IntentOutcomeEnum.answered);
+      expect(state.escalated).toBe(false);
+      expect(botMessages(deps)).toEqual([
+        'Delivery to Germany takes 3-5 business days.',
+      ]);
+      expect(state.knowledge).toEqual(
+        expect.objectContaining({
+          status: KnowledgeAnswerStatusEnum.answered,
+          rewrittenQuery: 'delivery time Germany',
+          candidates: 12,
+        }),
+      );
+      expect(
+        deps.detectedIntentsService.createForMessage,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('should pass earlier turns without the message itself', async () => {
+      const { service, deps, reply } = createService(
+        {},
+        { knowledgeEnabled: true },
+      );
+      deps.intentLlmService.classify.mockResolvedValue([]);
+
+      await service.run(reply('message-2', 'And to Austria?'));
+
+      const [{ message: question, history }] =
+        deps.knowledgeService.answer.mock.calls[0];
+      expect(question).toBe('And to Austria?');
+      expect(history.map(({ id }: Message) => id)).toEqual([message.id]);
+    });
+
+    it('should escalate when the knowledge base has no answer', async () => {
+      const { service, deps } = createService({}, { knowledgeEnabled: true });
+      deps.intentLlmService.classify.mockResolvedValue([]);
+      deps.knowledgeService.answer.mockResolvedValue(
+        knowledgeAnswer({
+          status: KnowledgeAnswerStatusEnum.notFound,
+          reply: null,
+          citations: [],
+        }),
+      );
+
+      const state = await service.run(input);
+
+      expect(state.outcome).toBe(IntentOutcomeEnum.noAnswer);
+      expect(state.escalated).toBe(true);
+      expect(botMessages(deps)).toEqual([
+        "I couldn't find the answer to that, so I'm passing your question to a member of our team.",
+      ]);
+    });
+
+    it('should reply to small talk without escalating', async () => {
+      const { service, deps } = createService({}, { knowledgeEnabled: true });
+      deps.intentLlmService.classify.mockResolvedValue([]);
+      deps.knowledgeService.answer.mockResolvedValue(
+        knowledgeAnswer({
+          status: KnowledgeAnswerStatusEnum.smallTalk,
+          reply: "You're welcome! Anything else I can help with?",
+          citations: [],
+        }),
+      );
+
+      const state = await service.run(input);
+
+      expect(state.outcome).toBe(IntentOutcomeEnum.answered);
+      expect(state.escalated).toBe(false);
+      expect(botMessages(deps)).toEqual([
+        "You're welcome! Anything else I can help with?",
+      ]);
+    });
+
+    it('should answer from the knowledge base when there are no actions', async () => {
+      const { service, deps } = createService({}, { knowledgeEnabled: true });
+      deps.actionsService.findActive.mockResolvedValue([]);
+
+      const state = await service.run(input);
+
+      expect(state.outcome).toBe(IntentOutcomeEnum.answered);
+      expect(deps.intentLlmService.classify).not.toHaveBeenCalled();
+      expect(deps.knowledgeService.answer).toHaveBeenCalled();
+    });
+
+    it('should screen messages before they reach the knowledge base', async () => {
+      const { service, deps } = createService(
+        { guardrailEnabled: true },
+        { knowledgeEnabled: true },
+      );
+      deps.actionsService.findActive.mockResolvedValue([]);
+      deps.intentLlmService.screenMessage.mockResolvedValue('abuse');
+
+      const state = await service.run(input);
+
+      expect(state.outcome).toBe(IntentOutcomeEnum.blocked);
+      expect(deps.knowledgeService.answer).not.toHaveBeenCalled();
+    });
+
+    it('should not consult the knowledge base for action requests', async () => {
+      const { service, deps } = createService({}, { knowledgeEnabled: true });
+      classifyAs(deps, [orderAction, 0.9]);
+      deps.intentLlmService.extractParameters.mockResolvedValue({
+        orderId: '123',
+      });
+
+      const state = await service.run(input);
+
+      expect(state.outcome).toBe(IntentOutcomeEnum.executed);
+      expect(deps.knowledgeService.answer).not.toHaveBeenCalled();
+    });
+
+    it('should escalate when the knowledge base fails', async () => {
+      const { service, deps } = createService({}, { knowledgeEnabled: true });
+      deps.intentLlmService.classify.mockResolvedValue([]);
+      deps.knowledgeService.answer.mockRejectedValue(
+        new Error('Qdrant collection not found'),
+      );
+
+      const state = await service.run(input);
+
+      expect(state.outcome).toBe(IntentOutcomeEnum.failed);
+      expect(state.error).toEqual({
+        node: 'answerFromKnowledge',
+        message: 'Qdrant collection not found',
+      });
+      expect(state.escalated).toBe(true);
+    });
+
+    it('should not consult the knowledge base when it is disabled', async () => {
+      const { service, deps } = createService();
+      deps.intentLlmService.classify.mockResolvedValue([]);
+
+      const state = await service.run(input);
+
+      expect(state.outcome).toBe(IntentOutcomeEnum.noIntent);
+      expect(deps.knowledgeService.answer).not.toHaveBeenCalled();
+      expect(botMessages(deps)).toEqual([]);
+    });
+  });
+
   it('should render the graph as Mermaid', async () => {
     const { service } = createService();
 
@@ -739,5 +924,6 @@ describe('IntentGraphService', () => {
 
     expect(mermaid).toContain('awaitConfirmation');
     expect(mermaid).toContain('handleError');
+    expect(mermaid).toContain('answerFromKnowledge');
   });
 });

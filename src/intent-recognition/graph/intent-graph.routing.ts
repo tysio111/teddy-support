@@ -16,6 +16,26 @@ export function continueOrEnd<T extends string>(next: T) {
     state.outcome ? END : next;
 }
 
+// Messages that match no action (or arrive when there are none) go to the
+// knowledge base when it is enabled; other outcomes end the run.
+export function routeAfterClassification(
+  state: IntentGraphStateType,
+  knowledgeEnabled: boolean,
+) {
+  const unmatched =
+    state.outcome === IntentOutcomeEnum.noIntent ||
+    state.outcome === IntentOutcomeEnum.noActions;
+
+  if (unmatched && knowledgeEnabled) {
+    return 'answerFromKnowledge';
+  }
+  return state.outcome ? END : 'persistIntents';
+}
+
+export function routeAfterKnowledge(state: IntentGraphStateType) {
+  return state.outcome === IntentOutcomeEnum.noAnswer ? 'escalateToHuman' : END;
+}
+
 // Fan-out: extract parameters for every candidate above its threshold in
 // parallel, so a fallback candidate is ready without another round trip.
 export function routeAfterPersist(state: IntentGraphStateType) {

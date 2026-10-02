@@ -4,6 +4,20 @@ import { FileType } from '../../files/domain/file';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class Resource {
+  // Read-only: set by knowledge indexing.
+  @ApiProperty({
+    type: () => String,
+    nullable: true,
+  })
+  indexError?: string | null;
+
+  // Read-only: see ResourceIndexStatusEnum.
+  @ApiProperty({
+    type: () => String,
+    nullable: true,
+  })
+  indexStatus?: string | null;
+
   // Read-only: set by action extraction.
   @ApiProperty({
     type: () => String,

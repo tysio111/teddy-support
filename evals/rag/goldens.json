@@ -1,0 +1,193 @@
+[
+  {
+    "name": "delivery-time-germany",
+    "input": "How long does standard delivery to Germany take and how much is it?",
+    "expected_status": "answered",
+    "expected_output": "Standard delivery to Germany takes 3-6 business days and costs 9.99 EUR; it is free for orders over 79 EUR.",
+    "source": "shipping-policy > Delivery options and costs"
+  },
+  {
+    "name": "ship-outside-europe",
+    "input": "Do you ship to the United States?",
+    "expected_status": "answered",
+    "expected_output": "No. The shop only ships within Europe: all EU countries, the United Kingdom, Switzerland and Norway.",
+    "source": "shipping-policy > Where we ship"
+  },
+  {
+    "name": "free-shipping",
+    "input": "Is shipping free?",
+    "expected_status": "answered",
+    "expected_output": "Standard shipping is free for orders over 299 PLN in Poland and over 79 EUR elsewhere in the EU. Free shipping does not apply to express delivery.",
+    "source": "shipping-policy > Delivery options and costs"
+  },
+  {
+    "name": "lost-parcel",
+    "input": "My parcel still hasn't arrived after two weeks, what can you do?",
+    "expected_status": "answered",
+    "expected_output": "If a parcel has not arrived within 10 business days of shipping, the shop opens an investigation with the carrier. If it is confirmed lost, they send a replacement or refund the order in full, including shipping costs.",
+    "source": "shipping-policy > Lost or delayed parcels"
+  },
+  {
+    "name": "return-swimwear",
+    "input": "Can I return a swimsuit I bought?",
+    "expected_status": "answered",
+    "expected_output": "Yes, within 30 days, as long as it is unworn with tags attached and the hygiene liner has not been removed. Swimwear with a removed hygiene liner cannot be returned unless it is faulty.",
+    "source": "returns-policy > Return window"
+  },
+  {
+    "name": "refund-timing",
+    "input": "How long does it take to get my money back after I send a return?",
+    "expected_status": "answered",
+    "expected_output": "Returned items are inspected within 3 business days of arrival. After approval, card and BLIK refunds usually appear within 3-5 business days; bank transfers can take up to 10 business days.",
+    "source": "returns-policy > Refunds"
+  },
+  {
+    "name": "exchange-size",
+    "input": "Can I exchange my jeans for a bigger size?",
+    "expected_status": "answered",
+    "expected_output": "There are no direct exchanges. Return the jeans for a refund and place a new order for the other size; if it is out of stock you can subscribe to a back-in-stock notification.",
+    "source": "returns-policy > Exchanges"
+  },
+  {
+    "name": "cash-on-delivery",
+    "input": "Can I pay cash on delivery?",
+    "expected_status": "answered",
+    "expected_output": "No, cash on delivery is not accepted. Accepted methods include cards, BLIK, Przelewy24, PayPal, Apple Pay, Google Pay and Klarna.",
+    "source": "payment-methods > Accepted payment methods"
+  },
+  {
+    "name": "klarna",
+    "input": "Do you offer buy now pay later?",
+    "expected_status": "answered",
+    "expected_output": "Yes, with Klarna, in Poland and Germany, for orders between 100 PLN and 5000 PLN.",
+    "source": "payment-methods > Accepted payment methods"
+  },
+  {
+    "name": "failed-payment",
+    "input": "My card payment failed during checkout. What happens to my order?",
+    "expected_status": "answered",
+    "expected_output": "The order stays reserved for 60 minutes so you can retry the payment from your account with the same or another method. After that it is cancelled automatically.",
+    "source": "payment-methods > Failed payments"
+  },
+  {
+    "name": "company-invoice",
+    "input": "I need an invoice for my company, how do I get one?",
+    "expected_status": "answered",
+    "expected_output": "Enter the company name and VAT number at checkout. The invoice is attached to the shipping confirmation email; it cannot be changed to a company invoice after the order has shipped.",
+    "source": "payment-methods > Invoices"
+  },
+  {
+    "name": "women-size-m",
+    "input": "Which women's size should I order if my waist is 72 cm?",
+    "expected_status": "answered",
+    "expected_output": "Size M (EU 38), which fits a 70-74 cm waist.",
+    "source": "size-guide > Women's clothing"
+  },
+  {
+    "name": "sneaker-fit",
+    "input": "Do your sneakers run true to size?",
+    "expected_status": "answered",
+    "expected_output": "No, the sneakers run half a size small, so ordering half a size up is recommended. Boots and sandals are true to size.",
+    "source": "size-guide > Shoes"
+  },
+  {
+    "name": "two-discount-codes",
+    "input": "Can I use two discount codes on one order?",
+    "expected_status": "answered",
+    "expected_output": "No, only one discount code can be used per order. A gift card can be combined with a discount code.",
+    "source": "promotions > Using a discount code"
+  },
+  {
+    "name": "newsletter-code-on-sale",
+    "input": "Does the newsletter welcome discount work on sale items?",
+    "expected_status": "answered",
+    "expected_output": "No. The 10% welcome code is valid for 14 days, on the first order only, and on full-price items only.",
+    "source": "promotions > Newsletter welcome discount"
+  },
+  {
+    "name": "winter-sale",
+    "input": "When does your winter sale start?",
+    "expected_status": "answered",
+    "expected_output": "The winter sale starts on 26 December.",
+    "source": "promotions > Seasonal sales"
+  },
+  {
+    "name": "cancel-after-shipping",
+    "input": "Is it possible to cancel an order that has already been shipped?",
+    "expected_status": "answered",
+    "expected_output": "No. Orders can be cancelled free of charge only until they leave the warehouse; after that you can return the order under the returns policy.",
+    "source": "terms > Cancelling an order"
+  },
+  {
+    "name": "pl-parcel-locker",
+    "input": "Ile kosztuje wysyłka do paczkomatu i jak długo trwa?",
+    "expected_status": "answered",
+    "expected_output": "Wysyłka do paczkomatu InPost kosztuje 11,99 zł i trwa 1-2 dni robocze; jest dostępna tylko w Polsce.",
+    "source": "shipping-policy > Delivery options and costs"
+  },
+  {
+    "name": "pl-return-window",
+    "input": "Czy mogę zwrócić bluzę po 20 dniach od dostawy?",
+    "expected_status": "answered",
+    "expected_output": "Tak, zwrot jest możliwy w ciągu 30 dni od dostawy, jeśli produkt jest nienoszony, nieprany i ma metki.",
+    "source": "returns-policy > Return window"
+  },
+  {
+    "name": "de-gift-card",
+    "input": "Wie lange ist ein Geschenkgutschein gültig?",
+    "expected_status": "answered",
+    "expected_output": "Geschenkgutscheine sind 12 Monate gültig und können für mehrere Bestellungen verwendet werden.",
+    "source": "promotions > Gift cards"
+  },
+  {
+    "name": "followup-norway",
+    "history": [
+      { "sender": "client", "content": "Do you ship to Norway?" },
+      { "sender": "bot", "content": "Yes, we ship to Norway." }
+    ],
+    "input": "How long does it take?",
+    "expected_status": "answered",
+    "expected_output": "Delivery to Norway takes 5-8 business days, with standard delivery only. Import duties and VAT may be due on delivery.",
+    "source": "shipping-policy > Delivery options and costs"
+  },
+  {
+    "name": "followup-return-label",
+    "history": [
+      { "sender": "client", "content": "I want to send back a dress, it doesn't fit." },
+      { "sender": "bot", "content": "You can return it within 30 days of delivery. You can start the return in your account under Orders." }
+    ],
+    "input": "Do I have to pay for the label? I live in Kraków.",
+    "expected_status": "answered",
+    "expected_output": "No, returns within Poland using the prepaid InPost or DPD label are free.",
+    "source": "returns-policy > Return shipping costs"
+  },
+  {
+    "name": "oos-physical-store",
+    "input": "Do you have a physical store in Warsaw where I can try things on?",
+    "expected_status": "not_found"
+  },
+  {
+    "name": "oos-gift-wrapping",
+    "input": "Can you gift wrap my order?",
+    "expected_status": "not_found"
+  },
+  {
+    "name": "oos-ceo",
+    "input": "Who is the CEO of your company?",
+    "expected_status": "not_found"
+  },
+  {
+    "name": "smalltalk-thanks",
+    "history": [
+      { "sender": "client", "content": "Is shipping free?" },
+      { "sender": "bot", "content": "Standard shipping is free over 299 PLN in Poland and over 79 EUR elsewhere in the EU." }
+    ],
+    "input": "Great, thanks a lot!",
+    "expected_status": "small_talk"
+  },
+  {
+    "name": "smalltalk-hello",
+    "input": "Hi there!",
+    "expected_status": "small_talk"
+  }
+]

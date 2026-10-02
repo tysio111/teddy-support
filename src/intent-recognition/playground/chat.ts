@@ -173,6 +173,17 @@ function printSummary(result: IntentGraphRunResult, ms: number): void {
         (errorMessage ? ` ${errorMessage}` : ''),
     );
   }
+  if (result.knowledge) {
+    const { status, rewrittenQuery, candidates, chunks, citations } =
+      result.knowledge;
+    lines.push(
+      `knowledge: ${status}, query "${rewrittenQuery}", ` +
+        `${chunks}/${candidates} chunks used`,
+    );
+    for (const { resourceTitle, headingPath } of citations) {
+      lines.push(`source: ${[resourceTitle, ...headingPath].join(' > ')}`);
+    }
+  }
   if (result.error) {
     lines.push(`error: ${result.error.node}: ${result.error.message}`);
   }

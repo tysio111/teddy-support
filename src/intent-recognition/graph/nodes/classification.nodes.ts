@@ -10,6 +10,10 @@ import { IntentGraphStateType, IntentGraphUpdate } from '../intent-graph.state';
 
 export function classifyIntent({ config, intentLlmService }: IntentGraphDeps) {
   return async (state: IntentGraphStateType): Promise<IntentGraphUpdate> => {
+    if (!state.catalog.length) {
+      return { candidates: [], outcome: IntentOutcomeEnum.noActions };
+    }
+
     const candidates = normalizeCandidates(
       await intentLlmService.classify({
         history: state.history,

@@ -3,6 +3,10 @@ import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { z } from 'zod';
 import { ActionAuthTypeEnum } from '../actions/action-auth-type.enum';
+import {
+  samplingOptions,
+  structuredOutputMethod,
+} from '../utils/anthropic-models';
 import { DocExtractionConfig } from './config/doc-extraction-config.type';
 import { DocumentContent } from './document-input';
 import {
@@ -56,7 +60,12 @@ export class ActionExtractor {
     }
 
     const result = await this.model
-      .withStructuredOutput(extractedActionsSchema, { name: 'save_actions' })
+      .withStructuredOutput(extractedActionsSchema, {
+        name: 'save_actions',
+        method: structuredOutputMethod(
+          (this.model as ChatAnthropic).model ?? '',
+        ),
+      })
       .invoke([
         new SystemMessage(ACTION_EXTRACTION_SYSTEM_PROMPT),
         new HumanMessage({
@@ -83,7 +92,7 @@ export function createActionExtractor(
     new ChatAnthropic({
       model: config.model,
       apiKey: config.anthropicApiKey,
-      temperature: 0,
+      ...samplingOptions(config.model),
       maxTokens: config.maxTokens,
       maxRetries: 2,
     }),

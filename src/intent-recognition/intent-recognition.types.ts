@@ -2,6 +2,10 @@ import { Action } from '../actions/domain/action';
 import { ActionParameter } from '../action-parameters/domain/action-parameter';
 import { DetectedIntent } from '../detected-intents/domain/detected-intent';
 import { Message } from '../messages/domain/message';
+import {
+  Citation,
+  KnowledgeAnswerStatusEnum,
+} from '../knowledge/knowledge.types';
 
 export type CatalogAction = {
   action: Action;
@@ -33,6 +37,15 @@ export type CandidateExtraction = {
   validated: boolean;
   // Set when extraction failed even after retries; the candidate is skipped.
   error: string | null;
+};
+
+// What the knowledge base path did; kept small since state is checkpointed.
+export type KnowledgeRunSummary = {
+  status: KnowledgeAnswerStatusEnum;
+  rewrittenQuery: string;
+  candidates: number;
+  chunks: number;
+  citations: Citation[];
 };
 
 export type GraphError = {
@@ -81,6 +94,9 @@ export enum IntentOutcomeEnum {
   blocked = 'blocked',
   noActions = 'no_actions',
   noIntent = 'no_intent',
+  // Knowledge base path (messages that match no action)
+  answered = 'answered',
+  noAnswer = 'no_answer',
   belowThreshold = 'below_threshold',
   needsClarification = 'needs_clarification',
   awaitingConfirmation = 'awaiting_confirmation',

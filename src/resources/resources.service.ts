@@ -49,6 +49,10 @@ export class ResourcesService {
     return this.resourceRepository.create({
       // Do not remove comment below.
       // <creating-property-payload />
+      indexError: createResourceDto.indexError,
+
+      indexStatus: createResourceDto.indexStatus,
+
       extractionError: createResourceDto.extractionError,
 
       vectorRef: createResourceDto.vectorRef,
@@ -116,6 +120,10 @@ export class ResourcesService {
     return this.resourceRepository.update(id, {
       // Do not remove comment below.
       // <updating-property-payload />
+      indexError: updateResourceDto.indexError,
+
+      indexStatus: updateResourceDto.indexStatus,
+
       extractionError: updateResourceDto.extractionError,
 
       vectorRef: updateResourceDto.vectorRef,

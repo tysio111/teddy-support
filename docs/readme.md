@@ -1,2 +1,0 @@
-# Teddy Support Documentation
-

@@ -9,6 +9,7 @@ import mailConfig from './mail/config/mail.config';
 import fileConfig from './files/config/file.config';
 import intentRecognitionConfig from './intent-recognition/config/intent-recognition.config';
 import docExtractionConfig from './doc-extraction/config/doc-extraction.config';
+import knowledgeConfig from './knowledge/config/knowledge.config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import path from 'path';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -49,11 +50,14 @@ import { IntentRecognitionModule } from './intent-recognition/intent-recognition
 
 import { DocExtractionModule } from './doc-extraction/doc-extraction.module';
 
+import { KnowledgeModule } from './knowledge/knowledge.module';
+
 @Module({
   imports: [
     EventEmitterModule.forRoot(),
     IntentRecognitionModule,
     DocExtractionModule,
+    KnowledgeModule,
     ActionExecutionsModule,
     DetectedIntentsModule,
     MessagesModule,
@@ -72,6 +76,7 @@ import { DocExtractionModule } from './doc-extraction/doc-extraction.module';
         fileConfig,
         intentRecognitionConfig,
         docExtractionConfig,
+        knowledgeConfig,
       ],
       envFilePath: ['.env'],
     }),

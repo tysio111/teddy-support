@@ -19,6 +19,18 @@ export class ResourceEntity extends EntityRelationalHelper {
     nullable: true,
     type: String,
   })
+  indexError?: string | null;
+
+  @Column({
+    nullable: true,
+    type: String,
+  })
+  indexStatus?: string | null;
+
+  @Column({
+    nullable: true,
+    type: String,
+  })
   extractionError?: string | null;
 
   @Column({

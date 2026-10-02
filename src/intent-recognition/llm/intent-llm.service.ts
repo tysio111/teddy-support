@@ -1,3 +1,4 @@
+import { ChatAnthropic } from '@langchain/anthropic';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { Runnable } from '@langchain/core/runnables';
@@ -6,6 +7,7 @@ import { z } from 'zod';
 import { Action } from '../../actions/domain/action';
 import { ActionParameter } from '../../action-parameters/domain/action-parameter';
 import { Message } from '../../messages/domain/message';
+import { structuredOutputMethod } from '../../utils/anthropic-models';
 import {
   CatalogAction,
   ExtractedParameters,
@@ -147,7 +149,10 @@ export class IntentLlmService {
   ): Runnable<BaseLanguageModelInput, T> {
     const { primary, fallback } = this.getModels();
     const bind = (model: BaseChatModel) =>
-      model.withStructuredOutput<T>(schema, { name });
+      model.withStructuredOutput<T>(schema, {
+        name,
+        method: structuredOutputMethod((model as ChatAnthropic).model ?? ''),
+      });
 
     return fallback
       ? bind(primary).withFallbacks([bind(fallback)])

@@ -1,0 +1,35 @@
+# yaml-language-server: $schema=https://promptfoo.dev/config-schema.json
+description: Knowledge base (RAG) evals over POST /knowledge/query
+
+# The provider sends `question` and `history` to the API; the prompt is only
+# what shows up in the results table.
+prompts:
+  - '{{question}}'
+
+# One column per pipeline variant. `npm run eval` runs only `baseline`;
+# `npm run eval:ablations` runs them all side by side.
+providers:
+  - id: file://provider.js
+    label: baseline
+  - id: file://provider.js
+    label: rerank-off
+    config: { rerank: false }
+  - id: file://provider.js
+    label: dense-only
+    config: { hybrid: false }
+  - id: file://provider.js
+    label: hyde-on
+    config: { hyde: true }
+
+tests: file://tests.js
+
+defaultTest:
+  options:
+    provider:
+      # Judge for the model-graded assertions (override with --grader).
+      text:
+        id: anthropic:messages:claude-sonnet-5-5
+        config:
+          max_tokens: 4096
+      # answer-relevance compares question embeddings.
+      embedding: voyage:voyage-3.5

@@ -46,6 +46,8 @@ const ESCALATION_REPLIES: Partial<Record<IntentOutcomeEnum, string>> = {
     "I want to make sure I get this right, so I'm passing your request to a member of our team.",
   [IntentOutcomeEnum.needsClarification]:
     "I still don't have everything I need, so I'm passing your request to a member of our team.",
+  [IntentOutcomeEnum.noAnswer]:
+    "I couldn't find the answer to that, so I'm passing your question to a member of our team.",
   [IntentOutcomeEnum.circuitOpen]:
     'That service is temporarily unavailable. A member of our team will follow up with you shortly.',
 };

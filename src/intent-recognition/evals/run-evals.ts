@@ -5,6 +5,7 @@
 import { ChatAnthropic } from '@langchain/anthropic';
 import { IntentLlmService } from '../llm/intent-llm.service';
 import { normalizeCandidates } from '../graph/intent-graph.helpers';
+import { samplingOptions } from '../../utils/anthropic-models';
 import { EVAL_CASES, EVAL_CATALOG, EvalCase, toMessages } from './fixtures';
 
 const CONFIDENCE_THRESHOLD = 0.7;
@@ -63,7 +64,7 @@ async function main(): Promise<void> {
     primary: new ChatAnthropic({
       model,
       apiKey: process.env.ANTHROPIC_API_KEY,
-      temperature: 0,
+      ...samplingOptions(model),
     }),
     fallback: null,
   });

@@ -9,6 +9,7 @@ import {
   GraphError,
   IntentCandidate,
   IntentOutcomeEnum,
+  KnowledgeRunSummary,
   NodeMetric,
 } from '../intent-recognition.types';
 import { ActionExecutionResult } from '../execution/action-executor.service';
@@ -78,6 +79,9 @@ export const IntentGraphState = Annotation.Root({
   executionAttempts: Annotation<number>,
   executions: appendable<ActionExecution>(),
 
+  // Knowledge base (messages that match no action)
+  knowledge: Annotation<KnowledgeRunSummary | null>,
+
   // Failure handling
   error: Annotation<GraphError | null>,
   escalated: Annotation<boolean>,
@@ -114,6 +118,7 @@ export function freshRunInput(input: {
     executionResult: null,
     executionAttempts: 0,
     executions: null,
+    knowledge: null,
     error: null,
     escalated: false,
     metrics: null,

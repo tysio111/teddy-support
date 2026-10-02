@@ -20,6 +20,10 @@ import {
 } from '@nestjs/swagger';
 
 export class CreateResourceDto {
+  indexError?: string | null;
+
+  indexStatus?: string | null;
+
   extractionError?: string | null;
 
   vectorRef?: string | null;

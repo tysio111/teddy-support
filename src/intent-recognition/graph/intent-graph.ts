@@ -12,9 +12,11 @@ import {
   continueOrEnd,
   reExtractSelected,
   routeAfterAttempt,
+  routeAfterClassification,
   routeAfterCircuit,
   routeAfterConfirmation,
   routeAfterFinalize,
+  routeAfterKnowledge,
   routeAfterPersist,
   routeAfterSelection,
   routeAfterValidation,
@@ -33,6 +35,7 @@ import {
   sendFallbackReply,
 } from './nodes/execution.nodes';
 import { escalateToHuman, handleError } from './nodes/failure.nodes';
+import { answerFromKnowledge } from './nodes/knowledge.nodes';
 import {
   askClarification,
   askConfirmation,
@@ -95,6 +98,10 @@ const toHandleError = (_state: unknown, { node, error }: NodeError) =>
  *   → checkCircuit → executeAction → recordAttempt ⇄ backoff (safe retries)
  *   → finalizeExecution → generateResponse → END
  *
+ * Messages that match no action (or arrive when there are none) go from
+ * classifyIntent to answerFromKnowledge when the knowledge base is enabled:
+ * it replies, or escalates when the knowledge base has no answer.
+ *
  * Failures: nodes retry transient errors (retryPolicy); once exhausted they
  * route to handleError → escalateToHuman. Low confidence, repeated missing
  * info, an open circuit or a failed execution also escalate to a human.
@@ -102,7 +109,7 @@ const toHandleError = (_state: unknown, { node, error }: NodeError) =>
  * message in the same conversation.
  */
 export function buildIntentGraph(deps: IntentGraphDeps) {
-  const { config } = deps;
+  const { config, knowledgeService } = deps;
   const llmNode = {
     retryPolicy: LLM_RETRY_POLICY,
     timeout: config.llmNodeTimeoutMs,
@@ -212,6 +219,16 @@ export function buildIntentGraph(deps: IntentGraphDeps) {
           errorHandler: sendFallbackReply(deps),
         },
       )
+      // Knowledge base
+      .addNode(
+        'answerFromKnowledge',
+        timed('answerFromKnowledge', answerFromKnowledge(deps)),
+        {
+          ...llmNode,
+          // Several model calls in sequence: query rewrite, rerank, answer.
+          timeout: config.llmNodeTimeoutMs * 3,
+        },
+      )
       // Failure handling
       .addNode('handleError', handleError(deps), {
         retryPolicy: IO_RETRY_POLICY,
@@ -224,7 +241,15 @@ export function buildIntentGraph(deps: IntentGraphDeps) {
       .addConditionalEdges('loadContext', continueOrEnd('dedupe'))
       .addConditionalEdges('dedupe', continueOrEnd('guardrail'))
       .addConditionalEdges('guardrail', continueOrEnd('classifyIntent'))
-      .addConditionalEdges('classifyIntent', continueOrEnd('persistIntents'))
+      .addConditionalEdges(
+        'classifyIntent',
+        (state) => routeAfterClassification(state, knowledgeService.enabled),
+        ['answerFromKnowledge', 'persistIntents', END],
+      )
+      .addConditionalEdges('answerFromKnowledge', routeAfterKnowledge, [
+        'escalateToHuman',
+        END,
+      ])
       .addConditionalEdges('persistIntents', routeAfterPersist, [
         'escalateToHuman',
         'extractParameters',

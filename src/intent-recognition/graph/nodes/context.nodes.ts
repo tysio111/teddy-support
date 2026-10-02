@@ -1,3 +1,4 @@
+import { ActionParameter } from '../../../action-parameters/domain/action-parameter';
 import { matchesInjectionPattern } from '../../prompts/guardrail.prompt';
 import {
   GuardrailVerdictEnum,
@@ -18,19 +19,19 @@ export function loadContext({
       return { outcome: IntentOutcomeEnum.skipped };
     }
 
+    // No early exit without actions: the message still goes through the
+    // guardrail, and the knowledge base may answer it (see classifyIntent).
     const actions = await actionsService.findActive();
-    if (!actions.length) {
-      return { message, outcome: IntentOutcomeEnum.noActions };
-    }
-
     const [history, parameters] = await Promise.all([
       messagesService.findRecentByConversationId(
         message.conversation.id,
         config.historyLimit,
       ),
-      actionParametersService.findByActionIds(
-        actions.map((action) => action.id),
-      ),
+      actions.length
+        ? actionParametersService.findByActionIds(
+            actions.map((action) => action.id),
+          )
+        : ([] as ActionParameter[]),
     ]);
 
     return {

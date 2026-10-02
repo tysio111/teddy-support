@@ -5,6 +5,7 @@ import { FileConfig } from '../files/config/file-config.type';
 import { MailConfig } from '../mail/config/mail-config.type';
 import { IntentRecognitionConfig } from '../intent-recognition/config/intent-recognition-config.type';
 import { DocExtractionConfig } from '../doc-extraction/config/doc-extraction-config.type';
+import { KnowledgeConfig } from '../knowledge/config/knowledge-config.type';
 
 export type AllConfigType = {
   app: AppConfig;
@@ -14,4 +15,5 @@ export type AllConfigType = {
   mail: MailConfig;
   intentRecognition: IntentRecognitionConfig;
   docExtraction: DocExtractionConfig;
+  knowledge: KnowledgeConfig;
 };
