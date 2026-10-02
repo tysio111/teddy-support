@@ -11,6 +11,7 @@ import {
   Column,
   JoinColumn,
   OneToOne,
+  Index,
 } from 'typeorm';
 import { EntityRelationalHelper } from '../../../../../utils/relational-entity-helper';
 
@@ -52,6 +53,7 @@ export class ResourceEntity extends EntityRelationalHelper {
   })
   title: string;
 
+  @Index()
   @ManyToOne(() => CompanyEntity, { eager: true, nullable: false })
   company: CompanyEntity;
 

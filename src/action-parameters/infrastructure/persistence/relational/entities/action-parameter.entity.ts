@@ -7,6 +7,7 @@ import {
   UpdateDateColumn,
   ManyToOne,
   Column,
+  Index,
 } from 'typeorm';
 import { EntityRelationalHelper } from '../../../../../utils/relational-entity-helper';
 
@@ -50,6 +51,7 @@ export class ActionParameterEntity extends EntityRelationalHelper {
   })
   name: string;
 
+  @Index()
   @ManyToOne(() => ActionEntity, { eager: true, nullable: false })
   action: ActionEntity;
 

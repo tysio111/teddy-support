@@ -4,6 +4,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
   Column,
+  Index,
 } from 'typeorm';
 import { EntityRelationalHelper } from '../../../../../utils/relational-entity-helper';
 
@@ -11,6 +12,7 @@ import { EntityRelationalHelper } from '../../../../../utils/relational-entity-h
   name: 'company',
 })
 export class CompanyEntity extends EntityRelationalHelper {
+  @Index({ unique: true })
   @Column({
     nullable: true,
     type: String,
@@ -29,6 +31,7 @@ export class CompanyEntity extends EntityRelationalHelper {
   })
   status: string;
 
+  @Index({ unique: true })
   @Column({
     nullable: false,
     type: String,

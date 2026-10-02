@@ -9,12 +9,15 @@ import {
   UpdateDateColumn,
   ManyToOne,
   Column,
+  Index,
+  Unique,
 } from 'typeorm';
 import { EntityRelationalHelper } from '../../../../../utils/relational-entity-helper';
 
 @Entity({
   name: 'company_member',
 })
+@Unique(['user'])
 export class CompanyMemberEntity extends EntityRelationalHelper {
   @Column({
     nullable: false,
@@ -28,9 +31,11 @@ export class CompanyMemberEntity extends EntityRelationalHelper {
   })
   role: string;
 
+  @Index()
   @ManyToOne(() => UserEntity, { eager: true, nullable: false })
   user: UserEntity;
 
+  @Index()
   @ManyToOne(() => CompanyEntity, { eager: true, nullable: false })
   company: CompanyEntity;
 

@@ -20,6 +20,7 @@ import { EntityRelationalHelper } from '../../../../../utils/relational-entity-h
 @Entity({
   name: 'user',
 })
+@Index(['socialId', 'provider'])
 export class UserEntity extends EntityRelationalHelper {
   @PrimaryGeneratedColumn()
   id: number;
@@ -53,6 +54,7 @@ export class UserEntity extends EntityRelationalHelper {
   @JoinColumn()
   photo?: FileEntity | null;
 
+  @Index()
   @ManyToOne(() => RoleEntity, {
     eager: true,
   })

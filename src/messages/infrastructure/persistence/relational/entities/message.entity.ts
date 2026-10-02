@@ -7,6 +7,7 @@ import {
   UpdateDateColumn,
   ManyToOne,
   Column,
+  Index,
 } from 'typeorm';
 import { EntityRelationalHelper } from '../../../../../utils/relational-entity-helper';
 
@@ -26,6 +27,7 @@ export class MessageEntity extends EntityRelationalHelper {
   })
   sender: string;
 
+  @Index()
   @ManyToOne(() => ConversationEntity, { eager: true, nullable: false })
   conversation: ConversationEntity;
 

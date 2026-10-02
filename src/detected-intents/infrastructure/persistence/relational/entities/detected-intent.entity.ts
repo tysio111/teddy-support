@@ -9,6 +9,7 @@ import {
   UpdateDateColumn,
   ManyToOne,
   Column,
+  Index,
 } from 'typeorm';
 import { EntityRelationalHelper } from '../../../../../utils/relational-entity-helper';
 
@@ -34,9 +35,11 @@ export class DetectedIntentEntity extends EntityRelationalHelper {
   })
   confidenceScore?: number;
 
+  @Index()
   @ManyToOne(() => ActionEntity, { eager: true, nullable: true })
   action?: ActionEntity | null;
 
+  @Index()
   @ManyToOne(() => MessageEntity, { eager: true, nullable: false })
   message?: MessageEntity;
 

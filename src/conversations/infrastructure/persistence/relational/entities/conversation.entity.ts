@@ -9,6 +9,7 @@ import {
   UpdateDateColumn,
   ManyToOne,
   Column,
+  Index,
 } from 'typeorm';
 import { EntityRelationalHelper } from '../../../../../utils/relational-entity-helper';
 
@@ -37,6 +38,7 @@ export class ConversationEntity extends EntityRelationalHelper {
   @ManyToOne(() => ClientEntity, { eager: true, nullable: true })
   client?: ClientEntity | null;
 
+  @Index()
   @ManyToOne(() => CompanyEntity, { eager: true, nullable: false })
   company: CompanyEntity;
 
