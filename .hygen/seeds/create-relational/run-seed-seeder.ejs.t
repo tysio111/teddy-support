@@ -1,6 +1,6 @@
 ---
 inject: true
 to: src/database/seeds/relational/run-seed.ts
-before: close
+before: "^    \\],"
 ---
-  await app.get(<%= name %>SeedService).run();
+      <%= name %>Seeder,

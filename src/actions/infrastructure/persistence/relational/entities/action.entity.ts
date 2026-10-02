@@ -26,7 +26,7 @@ export class ActionEntity extends EntityRelationalHelper {
 
   @Column({
     nullable: true,
-    type: Number,
+    type: 'double precision',
   })
   confidenceThreshold?: number | null;
 

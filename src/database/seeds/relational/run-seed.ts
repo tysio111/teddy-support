@@ -1,18 +1,31 @@
-import { NestFactory } from '@nestjs/core';
-import { RoleSeedService } from './role/role-seed.service';
-import { SeedModule } from './seed.module';
-import { StatusSeedService } from './status/status-seed.service';
-import { UserSeedService } from './user/user-seed.service';
+import 'dotenv/config';
+import { runSeeders } from 'typeorm-extension';
+import { AppDataSource } from '../../data-source';
+import { ActionSeeder } from './action/action.seeder';
+import { ClientSeeder } from './client/client.seeder';
+import { ConversationSeeder } from './conversation/conversation.seeder';
+import { ResourceSeeder } from './resource/resource.seeder';
+import { RoleSeeder } from './role/role.seeder';
+import { StatusSeeder } from './status/status.seeder';
+import { UserSeeder } from './user/user.seeder';
 
 const runSeed = async () => {
-  const app = await NestFactory.create(SeedModule);
+  await AppDataSource.initialize();
 
-  // run
-  await app.get(RoleSeedService).run();
-  await app.get(StatusSeedService).run();
-  await app.get(UserSeedService).run();
+  // Seeders run in this order (later ones depend on rows from earlier ones).
+  await runSeeders(AppDataSource, {
+    seeds: [
+      RoleSeeder,
+      StatusSeeder,
+      UserSeeder,
+      ActionSeeder,
+      ClientSeeder,
+      ConversationSeeder,
+      ResourceSeeder,
+    ],
+  });
 
-  await app.close();
+  await AppDataSource.destroy();
 };
 
 void runSeed();

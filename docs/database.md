@@ -127,9 +127,11 @@ npm run schema:drop
 
 ### Creating seeds (TypeORM)
 
-1. Create seed file with `npm run seed:create:relational -- --name Post`. Where `Post` is name of entity.
-1. Go to `src/database/seeds/relational/post/post-seed.service.ts`.
-1. In `run` method extend your logic.
+Seeds use [typeorm-extension](https://typeorm-extension.tada5hi.net/guide/seeding.html) on top of `AppDataSource` from `src/database/data-source.ts`. No Nest application is started.
+
+1. Create seed file with `npm run seed:create:relational -- --name Post`. Where `Post` is name of entity. This creates `src/database/seeds/relational/post/post.seeder.ts` and registers `PostSeeder` in `src/database/seeds/relational/run-seed.ts`.
+1. In the `run` method extend your logic. Get repositories with `dataSource.getRepository(PostEntity)`.
+1. Check the seeder's position in the `seeds` array in `run-seed.ts`. Seeders run in that order, so a seeder must come after the seeders whose rows it depends on.
 1. Run [npm run seed:run:relational](#run-seed-typeorm)
 
 ### Run seed (TypeORM)
@@ -140,110 +142,56 @@ npm run seed:run:relational
 
 ### Factory and Faker (TypeORM)
 
-1. Install faker:
-
-    ```bash
-    npm i --save-dev @faker-js/faker
-    ```
+`@faker-js/faker` is installed as a peer dependency of `typeorm-extension`.
 
 1. Create `src/database/seeds/relational/user/user.factory.ts`:
 
     ```ts
-    import { faker } from '@faker-js/faker';
+    import { setSeederFactory } from 'typeorm-extension';
     import { RoleEnum } from '../../../../roles/roles.enum';
     import { StatusEnum } from '../../../../statuses/statuses.enum';
-    import { Injectable } from '@nestjs/common';
-    import { InjectRepository } from '@nestjs/typeorm';
-    import { Repository } from 'typeorm';
-    import { RoleEntity } from '../../../../roles/infrastructure/persistence/relational/entities/role.entity';
     import { UserEntity } from '../../../../users/infrastructure/persistence/relational/entities/user.entity';
-    import { StatusEntity } from '../../../../statuses/infrastructure/persistence/relational/entities/status.entity';
 
-    @Injectable()
-    export class UserFactory {
-      constructor(
-        @InjectRepository(UserEntity)
-        private repositoryUser: Repository<UserEntity>,
-        @InjectRepository(RoleEntity)
-        private repositoryRole: Repository<RoleEntity>,
-        @InjectRepository(StatusEntity)
-        private repositoryStatus: Repository<StatusEntity>,
-      ) {}
-
-      createRandomUser() {
-        // Need for saving "this" context
-        return () => {
-          return this.repositoryUser.create({
-            firstName: faker.person.firstName(),
-            lastName: faker.person.lastName(),
-            email: faker.internet.email(),
-            password: faker.internet.password(),
-            role: this.repositoryRole.create({
-              id: RoleEnum.user,
-              name: 'User',
-            }),
-            status: this.repositoryStatus.create({
-              id: StatusEnum.active,
-              name: 'Active',
-            }),
-          });
-        };
-      }
-    }
+    export const UserFactory = setSeederFactory(UserEntity, (faker) => {
+      const user = new UserEntity();
+      user.firstName = faker.person.firstName();
+      user.lastName = faker.person.lastName();
+      user.email = faker.internet.email();
+      user.password = faker.internet.password();
+      user.role = { id: RoleEnum.user, name: 'User' };
+      user.status = { id: StatusEnum.active, name: 'Active' };
+      return user;
+    });
     ```
 
-1. Make changes in `src/database/seeds/relational/user/user-seed.service.ts`:
+1. Register the factory in `src/database/seeds/relational/run-seed.ts`:
 
     ```ts
-    // Some code here...
-    import { UserFactory } from './user.factory';
-    import { faker } from '@faker-js/faker';
-
-    @Injectable()
-    export class UserSeedService {
-      constructor(
-        // Some code here...
-        private userFactory: UserFactory,
-      ) {}
-
-      async run() {
-        // Some code here...
-
-        await this.repository.save(
-          faker.helpers.multiple(this.userFactory.createRandomUser(), {
-            count: 5,
-          }),
-        );
-      }
-    }
+    await runSeeders(AppDataSource, {
+      seeds: [/* ... */],
+      factories: [UserFactory],
+    });
     ```
 
-1. Make changes in `src/database/seeds/relational/user/user-seed.module.ts`:
+1. Use it in `src/database/seeds/relational/user/user.seeder.ts`:
 
     ```ts
-    import { Module } from '@nestjs/common';
-    import { TypeOrmModule } from '@nestjs/typeorm';
-    
-    import { UserSeedService } from './user-seed.service';
-    import { UserFactory } from './user.factory';
+    import { DataSource } from 'typeorm';
+    import { Seeder, SeederFactoryManager } from 'typeorm-extension';
 
-    import { UserEntity } from '../../../../users/infrastructure/persistence/relational/entities/user.entity';
-    import { RoleEntity } from '../../../../roles/infrastructure/persistence/relational/entities/role.entity';
-    import { StatusEntity } from '../../../../statuses/infrastructure/persistence/relational/entities/status.entity';
+    export class UserSeeder implements Seeder {
+      async run(dataSource: DataSource, factoryManager: SeederFactoryManager) {
+        // Some code here...
 
-    @Module({
-      imports: [TypeOrmModule.forFeature([UserEntity, Role, Status])],
-      providers: [UserSeedService, UserFactory],
-      exports: [UserSeedService, UserFactory],
-    })
-    export class UserSeedModule {}
-
+        await factoryManager.get(UserEntity).saveMany(5);
+      }
+    }
     ```
 
 1. Run seed:
 
     ```bash
-    npm run seed:run
+    npm run seed:run:relational
     ```
 
 ---

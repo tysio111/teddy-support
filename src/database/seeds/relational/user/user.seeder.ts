@@ -1,21 +1,15 @@
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-
-import { Repository } from 'typeorm';
+import { DataSource } from 'typeorm';
+import { Seeder } from 'typeorm-extension';
 import bcrypt from 'bcryptjs';
 import { RoleEnum } from '../../../../roles/roles.enum';
 import { StatusEnum } from '../../../../statuses/statuses.enum';
 import { UserEntity } from '../../../../users/infrastructure/persistence/relational/entities/user.entity';
 
-@Injectable()
-export class UserSeedService {
-  constructor(
-    @InjectRepository(UserEntity)
-    private readonly repository: Repository<UserEntity>,
-  ) {}
+export class UserSeeder implements Seeder {
+  async run(dataSource: DataSource) {
+    const repository = dataSource.getRepository(UserEntity);
 
-  async run() {
-    const countAdmin = await this.repository.count({
+    const countAdmin = await repository.count({
       where: {
         role: {
           id: RoleEnum.admin,
@@ -27,8 +21,8 @@ export class UserSeedService {
       const salt = await bcrypt.genSalt();
       const password = await bcrypt.hash('secret', salt);
 
-      await this.repository.save(
-        this.repository.create({
+      await repository.save(
+        repository.create({
           firstName: 'Super',
           lastName: 'Admin',
           email: 'admin@example.com',
@@ -45,7 +39,7 @@ export class UserSeedService {
       );
     }
 
-    const countUser = await this.repository.count({
+    const countUser = await repository.count({
       where: {
         role: {
           id: RoleEnum.user,
@@ -57,8 +51,8 @@ export class UserSeedService {
       const salt = await bcrypt.genSalt();
       const password = await bcrypt.hash('secret', salt);
 
-      await this.repository.save(
-        this.repository.create({
+      await repository.save(
+        repository.create({
           firstName: 'John',
           lastName: 'Doe',
           email: 'john.doe@example.com',

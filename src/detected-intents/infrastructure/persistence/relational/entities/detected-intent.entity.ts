@@ -37,7 +37,7 @@ export class DetectedIntentEntity extends EntityRelationalHelper {
 
   @Column({
     nullable: false,
-    type: Number,
+    type: 'double precision',
   })
   confidenceScore?: number;
 

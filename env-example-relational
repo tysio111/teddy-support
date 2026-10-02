@@ -61,6 +61,9 @@ APPLE_APP_AUDIENCE=[]
 
 WORKER_HOST=redis://redis:6379/1
 
+# Base URL of the demo shop API used by the action seed (echo service by default)
+SEED_SHOP_API_URL=https://httpbin.org/anything/shop
+
 # Intent recognition (LangChain / LangGraph + Anthropic)
 INTENT_RECOGNITION_ENABLED=false
 ANTHROPIC_API_KEY=

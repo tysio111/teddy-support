@@ -1,6 +1,6 @@
 ---
 inject: true
 to: src/database/seeds/relational/run-seed.ts
-after: \@nestjs\/core
+after: typeorm-extension
 ---
-import { <%= name %>SeedService } from './<%= h.inflection.transform(name, ['underscore', 'dasherize']) %>/<%= h.inflection.transform(name, ['underscore', 'dasherize']) %>-seed.service';
+import { <%= name %>Seeder } from './<%= h.inflection.transform(name, ['underscore', 'dasherize']) %>/<%= h.inflection.transform(name, ['underscore', 'dasherize']) %>.seeder';
