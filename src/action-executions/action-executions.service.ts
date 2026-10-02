@@ -175,6 +175,11 @@ export class ActionExecutionsService {
     });
   }
 
+  // System context (used by intent recognition).
+  record(data: Omit<ActionExecution, 'id' | 'createdAt' | 'updatedAt'>) {
+    return this.actionExecutionRepository.create(data);
+  }
+
   remove(id: ActionExecution['id']) {
     return this.actionExecutionRepository.remove(id);
   }

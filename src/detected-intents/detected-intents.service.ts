@@ -76,6 +76,8 @@ export class DetectedIntentsService {
     return this.detectedIntentRepository.create({
       // Do not remove comment below.
       // <creating-property-payload />
+      extractedParameters: createDetectedIntentDto.extractedParameters,
+
       status: createDetectedIntentDto.status,
 
       rank: createDetectedIntentDto.rank,
@@ -158,6 +160,8 @@ export class DetectedIntentsService {
     return this.detectedIntentRepository.update(id, {
       // Do not remove comment below.
       // <updating-property-payload />
+      extractedParameters: updateDetectedIntentDto.extractedParameters,
+
       status: updateDetectedIntentDto.status,
 
       rank: updateDetectedIntentDto.rank,
@@ -168,6 +172,21 @@ export class DetectedIntentsService {
 
       message,
     });
+  }
+
+  // System context (used by intent recognition): message and action are
+  // already resolved and verified to belong to the same company.
+  createForMessage(
+    data: Omit<DetectedIntent, 'id' | 'createdAt' | 'updatedAt'>,
+  ) {
+    return this.detectedIntentRepository.create(data);
+  }
+
+  updateRecognitionResult(
+    id: DetectedIntent['id'],
+    payload: Pick<DetectedIntent, 'status' | 'extractedParameters'>,
+  ) {
+    return this.detectedIntentRepository.update(id, payload);
   }
 
   remove(id: DetectedIntent['id']) {

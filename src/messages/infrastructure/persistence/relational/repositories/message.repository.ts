@@ -8,6 +8,7 @@ import { MessageRepository } from '../../message.repository';
 import { MessageMapper } from '../mappers/message.mapper';
 import { IPaginationOptions } from '../../../../../utils/types/pagination-options';
 import { Company } from '../../../../../companies/domain/company';
+import { Conversation } from '../../../../../conversations/domain/conversation';
 
 @Injectable()
 export class MessageRelationalRepository implements MessageRepository {
@@ -56,6 +57,19 @@ export class MessageRelationalRepository implements MessageRepository {
     });
 
     return entities.map((entity) => MessageMapper.toDomain(entity));
+  }
+
+  async findRecentByConversationId(
+    conversationId: Conversation['id'],
+    limit: number,
+  ): Promise<Message[]> {
+    const entities = await this.messageRepository.find({
+      where: { conversation: { id: conversationId } },
+      order: { createdAt: 'DESC' },
+      take: limit,
+    });
+
+    return entities.reverse().map((entity) => MessageMapper.toDomain(entity));
   }
 
   async update(id: Message['id'], payload: Partial<Message>): Promise<Message> {

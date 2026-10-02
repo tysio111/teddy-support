@@ -7,6 +7,8 @@ import authConfig from './auth/config/auth.config';
 import appConfig from './config/app.config';
 import mailConfig from './mail/config/mail.config';
 import fileConfig from './files/config/file.config';
+import intentRecognitionConfig from './intent-recognition/config/intent-recognition.config';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import path from 'path';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -46,8 +48,12 @@ import { DetectedIntentsModule } from './detected-intents/detected-intents.modul
 
 import { ActionExecutionsModule } from './action-executions/action-executions.module';
 
+import { IntentRecognitionModule } from './intent-recognition/intent-recognition.module';
+
 @Module({
   imports: [
+    EventEmitterModule.forRoot(),
+    IntentRecognitionModule,
     ActionExecutionsModule,
     DetectedIntentsModule,
     MessagesModule,
@@ -60,7 +66,14 @@ import { ActionExecutionsModule } from './action-executions/action-executions.mo
     CompaniesModule,
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig, authConfig, appConfig, mailConfig, fileConfig],
+      load: [
+        databaseConfig,
+        authConfig,
+        appConfig,
+        mailConfig,
+        fileConfig,
+        intentRecognitionConfig,
+      ],
       envFilePath: ['.env'],
     }),
     infrastructureDatabaseModule,

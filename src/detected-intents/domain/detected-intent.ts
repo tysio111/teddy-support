@@ -5,6 +5,9 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class DetectedIntent {
   @Exclude({ toPlainOnly: true })
+  extractedParameters?: string | null;
+
+  @Exclude({ toPlainOnly: true })
   status?: string;
 
   @Exclude({ toPlainOnly: true })

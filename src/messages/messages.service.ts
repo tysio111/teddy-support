@@ -15,6 +15,11 @@ import { IPaginationOptions } from '../utils/types/pagination-options';
 import { Message } from './domain/message';
 import { JwtPayloadType } from '../auth/strategies/types/jwt-payload.type';
 import { isPlatformAdmin } from '../roles/is-platform-admin.util';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import {
+  MESSAGE_CREATED_EVENT,
+  MessageCreatedEvent,
+} from './events/message-created.event';
 
 @Injectable()
 export class MessagesService {
@@ -23,6 +28,7 @@ export class MessagesService {
 
     // Dependencies here
     private readonly messageRepository: MessageRepository,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async create(
@@ -48,7 +54,7 @@ export class MessagesService {
     }
     const conversation = conversationObject;
 
-    return this.messageRepository.create({
+    const message = await this.messageRepository.create({
       // Do not remove comment below.
       // <creating-property-payload />
       content: createMessageDto.content,
@@ -57,6 +63,18 @@ export class MessagesService {
 
       conversation,
     });
+
+    this.eventEmitter.emit(
+      MESSAGE_CREATED_EVENT,
+      new MessageCreatedEvent(
+        message.id,
+        conversation.id,
+        conversation.company.id,
+        message.sender,
+      ),
+    );
+
+    return message;
   }
 
   findAllWithPagination({
@@ -94,6 +112,21 @@ export class MessagesService {
 
   findByIds(ids: Message['id'][]) {
     return this.messageRepository.findByIds(ids);
+  }
+
+  // System context (no current user): skips the company ownership check.
+  findByIdUnscoped(id: Message['id']) {
+    return this.messageRepository.findById(id);
+  }
+
+  findRecentByConversationId(
+    conversationId: Conversation['id'],
+    limit: number,
+  ) {
+    return this.messageRepository.findRecentByConversationId(
+      conversationId,
+      limit,
+    );
   }
 
   async update(

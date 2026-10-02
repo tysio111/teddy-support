@@ -8,6 +8,7 @@ import { ActionParameterRepository } from '../../action-parameter.repository';
 import { ActionParameterMapper } from '../mappers/action-parameter.mapper';
 import { IPaginationOptions } from '../../../../../utils/types/pagination-options';
 import { Company } from '../../../../../companies/domain/company';
+import { Action } from '../../../../../actions/domain/action';
 
 @Injectable()
 export class ActionParameterRelationalRepository implements ActionParameterRepository {
@@ -53,6 +54,19 @@ export class ActionParameterRelationalRepository implements ActionParameterRepos
   async findByIds(ids: ActionParameter['id'][]): Promise<ActionParameter[]> {
     const entities = await this.actionParameterRepository.find({
       where: { id: In(ids) },
+    });
+
+    return entities.map((entity) => ActionParameterMapper.toDomain(entity));
+  }
+
+  async findByActionIds(actionIds: Action['id'][]): Promise<ActionParameter[]> {
+    if (!actionIds.length) {
+      return [];
+    }
+
+    const entities = await this.actionParameterRepository.find({
+      where: { action: { id: In(actionIds) } },
+      order: { order: 'ASC' },
     });
 
     return entities.map((entity) => ActionParameterMapper.toDomain(entity));

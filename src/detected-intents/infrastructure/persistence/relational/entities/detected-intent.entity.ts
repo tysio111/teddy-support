@@ -18,6 +18,12 @@ import { EntityRelationalHelper } from '../../../../../utils/relational-entity-h
 })
 export class DetectedIntentEntity extends EntityRelationalHelper {
   @Column({
+    nullable: true,
+    type: String,
+  })
+  extractedParameters?: string | null;
+
+  @Column({
     nullable: false,
     type: String,
   })

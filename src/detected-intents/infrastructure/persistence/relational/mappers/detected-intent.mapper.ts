@@ -9,6 +9,8 @@ import { DetectedIntentEntity } from '../entities/detected-intent.entity';
 export class DetectedIntentMapper {
   static toDomain(raw: DetectedIntentEntity): DetectedIntent {
     const domainEntity = new DetectedIntent();
+    domainEntity.extractedParameters = raw.extractedParameters;
+
     domainEntity.status = raw.status;
 
     domainEntity.rank = raw.rank;
@@ -34,6 +36,8 @@ export class DetectedIntentMapper {
 
   static toPersistence(domainEntity: DetectedIntent): DetectedIntentEntity {
     const persistenceEntity = new DetectedIntentEntity();
+    persistenceEntity.extractedParameters = domainEntity.extractedParameters;
+
     persistenceEntity.status = domainEntity.status;
 
     persistenceEntity.rank = domainEntity.rank;

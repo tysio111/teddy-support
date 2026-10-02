@@ -3,6 +3,8 @@ import { ActionDto } from '../../actions/dto/action.dto';
 import { MessageDto } from '../../messages/dto/message.dto';
 
 export class CreateDetectedIntentDto {
+  extractedParameters?: string | null;
+
   status?: string;
 
   rank?: number;

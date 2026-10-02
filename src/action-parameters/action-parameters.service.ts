@@ -102,6 +102,10 @@ export class ActionParametersService {
     return this.actionParameterRepository.findByIds(ids);
   }
 
+  findByActionIds(actionIds: Action['id'][]) {
+    return this.actionParameterRepository.findByActionIds(actionIds);
+  }
+
   async update(
     id: ActionParameter['id'],
     currentUser: JwtPayloadType,

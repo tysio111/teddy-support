@@ -21,6 +21,11 @@ export abstract class ActionRepository {
 
   abstract findByIds(ids: Action['id'][]): Promise<Action[]>;
 
+  abstract findByCompanyIdAndStatus(
+    companyId: Company['id'],
+    status: Action['status'],
+  ): Promise<Action[]>;
+
   abstract update(
     id: Action['id'],
     payload: DeepPartial<Action>,

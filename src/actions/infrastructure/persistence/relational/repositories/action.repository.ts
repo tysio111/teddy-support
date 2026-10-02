@@ -56,6 +56,17 @@ export class ActionRelationalRepository implements ActionRepository {
     return entities.map((entity) => ActionMapper.toDomain(entity));
   }
 
+  async findByCompanyIdAndStatus(
+    companyId: Company['id'],
+    status: Action['status'],
+  ): Promise<Action[]> {
+    const entities = await this.actionRepository.find({
+      where: { company: { id: companyId }, status },
+    });
+
+    return entities.map((entity) => ActionMapper.toDomain(entity));
+  }
+
   async update(id: Action['id'], payload: Partial<Action>): Promise<Action> {
     const entity = await this.actionRepository.findOne({
       where: { id },

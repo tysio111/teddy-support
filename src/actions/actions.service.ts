@@ -12,6 +12,7 @@ import { UpdateActionDto } from './dto/update-action.dto';
 import { ActionRepository } from './infrastructure/persistence/action.repository';
 import { IPaginationOptions } from '../utils/types/pagination-options';
 import { Action } from './domain/action';
+import { ActionStatusEnum } from './action-status.enum';
 import { JwtPayloadType } from '../auth/strategies/types/jwt-payload.type';
 import { isPlatformAdmin } from '../roles/is-platform-admin.util';
 
@@ -110,6 +111,15 @@ export class ActionsService {
 
   findByIds(ids: Action['id'][]) {
     return this.actionRepository.findByIds(ids);
+  }
+
+  // System context (no current user): callers must already have verified
+  // company ownership.
+  findActiveByCompanyId(companyId: Action['company']['id']) {
+    return this.actionRepository.findByCompanyIdAndStatus(
+      companyId,
+      ActionStatusEnum.active,
+    );
   }
 
   async update(
