@@ -39,39 +39,46 @@ export class IntentRecognitionListener {
       return;
     }
 
-    await this.withConversationLock(event.conversationId, () =>
-      this.process({
-        messageId: event.messageId,
-        conversationId: event.conversationId,
-      }),
-    );
-  }
+    const input = {
+      messageId: event.messageId,
+      conversationId: event.conversationId,
+    };
 
-  private async process(input: IntentGraphInput): Promise<void> {
     try {
-      const pending = await this.intentGraphService.getPendingInput(
-        input.conversationId,
-      );
-
-      let result: IntentGraphRunResult;
-      if (pending && !pending.expired) {
-        // The client is answering a question we asked: continue that run.
-        result = await this.intentGraphService.resume(input);
-        if (result.outcome === IntentOutcomeEnum.superseded) {
-          // They moved on to something else instead: treat it as new.
-          result = await this.intentGraphService.run(input);
-        }
-      } else {
-        result = await this.intentGraphService.run(input);
-      }
-
-      this.log(input, result);
+      this.log(input, await this.recognize(input));
     } catch (error) {
       this.logger.error(
         `Intent recognition failed for message ${input.messageId}`,
         error instanceof Error ? error.stack : String(error),
       );
     }
+  }
+
+  // Runs (or resumes) the graph for a client message. Public so tools like the
+  // chat script can drive the same flow without the event; throws on failure.
+  recognize(input: IntentGraphInput): Promise<IntentGraphRunResult> {
+    return this.withConversationLock(input.conversationId, () =>
+      this.process(input),
+    );
+  }
+
+  private async process(
+    input: IntentGraphInput,
+  ): Promise<IntentGraphRunResult> {
+    const pending = await this.intentGraphService.getPendingInput(
+      input.conversationId,
+    );
+
+    if (pending && !pending.expired) {
+      // The client is answering a question we asked: continue that run.
+      const result = await this.intentGraphService.resume(input);
+      if (result.outcome !== IntentOutcomeEnum.superseded) {
+        return result;
+      }
+      // They moved on to something else instead: treat it as new.
+    }
+
+    return this.intentGraphService.run(input);
   }
 
   private log(input: IntentGraphInput, result: IntentGraphRunResult): void {
@@ -89,20 +96,25 @@ export class IntentRecognitionListener {
     );
   }
 
-  private async withConversationLock(
+  private async withConversationLock<T>(
     conversationId: string,
-    task: () => Promise<void>,
-  ): Promise<void> {
+    task: () => Promise<T>,
+  ): Promise<T> {
     const previous =
       this.conversationLocks.get(conversationId) ?? Promise.resolve();
     const current = previous.then(task);
-    this.conversationLocks.set(conversationId, current);
+    // Later tasks wait for this one, but must not inherit its failure.
+    const settled = current.then(
+      () => undefined,
+      () => undefined,
+    );
+    this.conversationLocks.set(conversationId, settled);
 
     try {
-      await current;
+      return await current;
     } finally {
       // Only the last queued task cleans up, so the map does not grow.
-      if (this.conversationLocks.get(conversationId) === current) {
+      if (this.conversationLocks.get(conversationId) === settled) {
         this.conversationLocks.delete(conversationId);
       }
     }

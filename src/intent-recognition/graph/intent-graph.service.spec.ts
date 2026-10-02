@@ -1,9 +1,9 @@
 import { Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { MemorySaver } from '@langchain/langgraph';
 import { Action } from '../../actions/domain/action';
 import { ActionParameter } from '../../action-parameters/domain/action-parameter';
 import { Message } from '../../messages/domain/message';
+import { IntentRecognitionConfig } from '../config/intent-recognition-config.type';
 import { ActionExecutionResult } from '../execution/action-executor.service';
 import { CircuitStateEnum } from '../execution/circuit-breaker.service';
 import { IntentOutcomeEnum } from '../intent-recognition.types';
@@ -97,12 +97,9 @@ function createService(configOverrides: Record<string, unknown> = {}) {
     executionMaxBackoffMs: 1000,
     pendingInputTtlMs: 60_000,
     ...configOverrides,
-  };
+  } as IntentRecognitionConfig;
   const messages = new Map<string, Message>([[message.id, message]]);
   const deps = {
-    configService: {
-      getOrThrow: jest.fn().mockReturnValue(config),
-    },
     messagesService: {
       findById: jest
         .fn()
@@ -175,11 +172,7 @@ function createService(configOverrides: Record<string, unknown> = {}) {
     logger: new Logger('IntentGraph'),
     checkpointer,
   } as unknown as IntentGraphDeps);
-  const service = new IntentGraphService(
-    graph,
-    checkpointer,
-    deps.configService as unknown as ConfigService,
-  );
+  const service = new IntentGraphService(graph, checkpointer, config);
 
   // Simulates the client replying in the same conversation.
   const reply = (id: string, content: string) => {

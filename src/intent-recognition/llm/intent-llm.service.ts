@@ -1,4 +1,3 @@
-import { Inject, Injectable } from '@nestjs/common';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { Runnable } from '@langchain/core/runnables';
@@ -32,7 +31,7 @@ import {
   buildResponsePrompt,
   RESPONSE_SYSTEM_PROMPT,
 } from '../prompts/response.prompt';
-import { CHAT_MODELS, ChatModels } from './chat-model.provider';
+import { ChatModels } from './chat-models';
 import { buildParameterSchema } from './parameter-schema';
 
 const classificationSchema = z.object({
@@ -59,11 +58,8 @@ const replySchema = z.object({
   reply: z.string().describe('The message to send to the customer'),
 });
 
-@Injectable()
 export class IntentLlmService {
-  constructor(
-    @Inject(CHAT_MODELS) private readonly models: ChatModels | null,
-  ) {}
+  constructor(private readonly models: ChatModels | null) {}
 
   async screenMessage(content: string): Promise<GuardrailVerdictEnum> {
     const result = await this.structured(

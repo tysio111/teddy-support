@@ -1,8 +1,6 @@
-import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { AllConfigType } from '../../config/config.type';
 import { Action } from '../../actions/domain/action';
 import { ActionAuthTypeEnum } from '../../actions/action-auth-type.enum';
+import { IntentRecognitionConfig } from '../config/intent-recognition-config.type';
 import { ExtractedParameters } from '../intent-recognition.types';
 
 const MAX_RESPONSE_PAYLOAD_LENGTH = 10_000;
@@ -84,9 +82,8 @@ function isConfigurationError(error: unknown): boolean {
   );
 }
 
-@Injectable()
 export class ActionExecutorService {
-  constructor(private readonly configService: ConfigService<AllConfigType>) {}
+  constructor(private readonly config: IntentRecognitionConfig) {}
 
   async execute(
     action: Action,
@@ -138,12 +135,7 @@ export class ActionExecutorService {
         headers,
         body,
         redirect: 'manual',
-        signal: AbortSignal.timeout(
-          this.configService.getOrThrow(
-            'intentRecognition.actionExecutionTimeoutMs',
-            { infer: true },
-          ),
-        ),
+        signal: AbortSignal.timeout(this.config.actionExecutionTimeoutMs),
       });
       const responseText = await response.text();
 

@@ -8,6 +8,7 @@
   "scripts": {
     "typeorm": "env-cmd -- ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js",
     "eval:intents": "env-cmd -- ts-node -r tsconfig-paths/register ./src/intent-recognition/evals/run-evals.ts",
+    "chat": "ts-node -r tsconfig-paths/register ./src/intent-recognition/playground/chat.ts",
     "migration:generate": "npm run typeorm -- --dataSource=src/database/data-source.ts migration:generate",
     "postmigration:generate": "npm run lint -- --fix",
     "migration:create": "npm run typeorm -- migration:create",

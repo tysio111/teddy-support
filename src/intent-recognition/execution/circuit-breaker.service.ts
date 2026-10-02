@@ -1,9 +1,7 @@
-import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { AllConfigType } from '../../config/config.type';
 import { Action } from '../../actions/domain/action';
 import { ActionExecutionsService } from '../../action-executions/action-executions.service';
 import { ActionExecutionStats } from '../../action-executions/infrastructure/persistence/action-execution.repository';
+import { IntentRecognitionConfig } from '../config/intent-recognition-config.type';
 
 export enum CircuitStateEnum {
   closed = 'closed',
@@ -44,17 +42,14 @@ export function resolveCircuitState(
  * to recover. State is derived from recent ActionExecution rows, so it is
  * shared across instances and survives restarts without extra infrastructure.
  */
-@Injectable()
 export class CircuitBreakerService {
   constructor(
-    private readonly configService: ConfigService<AllConfigType>,
+    private readonly config: IntentRecognitionConfig,
     private readonly actionExecutionsService: ActionExecutionsService,
   ) {}
 
   async getState(action: Action): Promise<CircuitStateEnum> {
-    const config = this.configService.getOrThrow('intentRecognition', {
-      infer: true,
-    });
+    const { config } = this;
     const stats = await this.actionExecutionsService.getRecentStatsByActionId(
       action.id,
       new Date(Date.now() - config.circuitWindowMs),

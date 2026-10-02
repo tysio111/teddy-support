@@ -1,5 +1,5 @@
-import { ConfigService } from '@nestjs/config';
 import { Action } from '../../actions/domain/action';
+import { IntentRecognitionConfig } from '../config/intent-recognition-config.type';
 import {
   ActionExecutorService,
   isRetryableFailure,
@@ -22,8 +22,8 @@ function createAction(overrides: Partial<Action> = {}): Action {
 describe('ActionExecutorService', () => {
   let fetchMock: jest.SpyInstance;
   const service = new ActionExecutorService({
-    getOrThrow: () => 1000,
-  } as unknown as ConfigService);
+    actionExecutionTimeoutMs: 1000,
+  } as IntentRecognitionConfig);
 
   beforeEach(() => {
     fetchMock = jest

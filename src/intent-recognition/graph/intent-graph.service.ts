@@ -1,9 +1,8 @@
-import { Inject, Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { Logger } from '@nestjs/common';
 import { BaseCheckpointSaver, Command, Interrupt } from '@langchain/langgraph';
 import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
-import { AllConfigType } from '../../config/config.type';
 import { Message } from '../../messages/domain/message';
+import { IntentRecognitionConfig } from '../config/intent-recognition-config.type';
 import { TokenUsage, TokenUsageTracker } from '../llm/token-usage.tracker';
 import { InterruptPayload, ResumeValue } from '../intent-recognition.types';
 import { IntentGraph } from './intent-graph';
@@ -12,8 +11,6 @@ import {
   IntentGraphStateType,
   IntentGraphUpdate,
 } from './intent-graph.state';
-import { INTENT_CHECKPOINTER } from './checkpointer.provider';
-import { INTENT_GRAPH } from './intent-graph.provider';
 
 export type IntentGraphInput = {
   messageId: Message['id'];
@@ -36,19 +33,17 @@ const RECURSION_LIMIT = 60;
 
 // Runs the intent graph (built in intent-graph.ts) for one message: fresh runs,
 // resuming a paused run, and inspecting its checkpointed state.
-@Injectable()
-export class IntentGraphService implements OnModuleDestroy {
+export class IntentGraphService {
   private readonly logger = new Logger(IntentGraphService.name);
 
   constructor(
-    @Inject(INTENT_GRAPH)
     private readonly graph: IntentGraph,
-    @Inject(INTENT_CHECKPOINTER)
     private readonly checkpointer: BaseCheckpointSaver,
-    private readonly configService: ConfigService<AllConfigType>,
+    private readonly config: IntentRecognitionConfig,
   ) {}
 
-  async onModuleDestroy(): Promise<void> {
+  // Releases the Postgres pool, if any. Called on module shutdown.
+  async close(): Promise<void> {
     if (this.checkpointer instanceof PostgresSaver) {
       await this.checkpointer.end();
     }
@@ -140,9 +135,5 @@ export class IntentGraphService implements OnModuleDestroy {
     // One thread per conversation: a paused run is resumed by the next client
     // message in the same conversation.
     return { configurable: { thread_id: conversationId } };
-  }
-
-  private get config() {
-    return this.configService.getOrThrow('intentRecognition', { infer: true });
   }
 }

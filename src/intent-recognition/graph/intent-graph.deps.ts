@@ -10,8 +10,8 @@ import { ActionExecutorService } from '../execution/action-executor.service';
 import { CircuitBreakerService } from '../execution/circuit-breaker.service';
 import { IntentLlmService } from '../llm/intent-llm.service';
 
-// Everything the graph's nodes need from the outside world. Nest provides these
-// (see intent-graph.provider.ts); tests pass plain mocks.
+// Everything the graph's nodes need from the outside world. Wired up in
+// intent-recognition.provider.ts; tests pass plain mocks.
 export type IntentGraphDeps = {
   config: IntentRecognitionConfig;
   logger: Logger;
