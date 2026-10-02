@@ -26,8 +26,38 @@ const infrastructureDatabaseModule = TypeOrmModule.forRootAsync({
   },
 });
 
+import { CompaniesModule } from './companies/companies.module';
+
+import { CompanyMembersModule } from './company-members/company-members.module';
+
+import { ClientsModule } from './clients/clients.module';
+
+import { ResourcesModule } from './resources/resources.module';
+
+import { ActionsModule } from './actions/actions.module';
+
+import { ActionParametersModule } from './action-parameters/action-parameters.module';
+
+import { ConversationsModule } from './conversations/conversations.module';
+
+import { MessagesModule } from './messages/messages.module';
+
+import { DetectedIntentsModule } from './detected-intents/detected-intents.module';
+
+import { ActionExecutionsModule } from './action-executions/action-executions.module';
+
 @Module({
   imports: [
+    ActionExecutionsModule,
+    DetectedIntentsModule,
+    MessagesModule,
+    ConversationsModule,
+    ActionParametersModule,
+    ActionsModule,
+    ResourcesModule,
+    ClientsModule,
+    CompanyMembersModule,
+    CompaniesModule,
     ConfigModule.forRoot({
       isGlobal: true,
       load: [databaseConfig, authConfig, appConfig, mailConfig, fileConfig],
