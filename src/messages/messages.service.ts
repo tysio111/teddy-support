@@ -81,6 +81,22 @@ export class MessagesService {
     return message;
   }
 
+  // System context (hand-off inbox): the caller checked who may reply.
+  async createAgentMessage(conversation: Conversation, content: string) {
+    const message = await this.messageRepository.create({
+      content,
+      sender: MessageSenderEnum.agent,
+      conversation,
+    });
+
+    this.eventEmitter.emit(
+      MESSAGE_CREATED_EVENT,
+      new MessageCreatedEvent(message.id, conversation.id, message.sender),
+    );
+
+    return message;
+  }
+
   findAllWithPagination({
     paginationOptions,
   }: {

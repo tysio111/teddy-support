@@ -4,6 +4,7 @@ import { ActionsService } from '../../actions/actions.service';
 import { ActionParametersService } from '../../action-parameters/action-parameters.service';
 import { ActionExecutionsService } from '../../action-executions/action-executions.service';
 import { DetectedIntentsService } from '../../detected-intents/detected-intents.service';
+import { HandoffsService } from '../../handoffs/handoffs.service';
 import { KnowledgeService } from '../../knowledge/knowledge.service';
 import { MessagesService } from '../../messages/messages.service';
 import { IntentRecognitionConfig } from '../config/intent-recognition-config.type';
@@ -26,4 +27,5 @@ export type IntentGraphDeps = {
   actionExecutorService: ActionExecutorService;
   circuitBreakerService: CircuitBreakerService;
   knowledgeService: KnowledgeService;
+  handoffsService: HandoffsService;
 };

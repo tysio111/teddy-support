@@ -6,6 +6,7 @@ import { MailConfig } from '../mail/config/mail-config.type';
 import { IntentRecognitionConfig } from '../intent-recognition/config/intent-recognition-config.type';
 import { DocExtractionConfig } from '../doc-extraction/config/doc-extraction-config.type';
 import { KnowledgeConfig } from '../knowledge/config/knowledge-config.type';
+import { HandoffConfig } from '../handoffs/config/handoff-config.type';
 
 export type AllConfigType = {
   app: AppConfig;
@@ -16,4 +17,5 @@ export type AllConfigType = {
   intentRecognition: IntentRecognitionConfig;
   docExtraction: DocExtractionConfig;
   knowledge: KnowledgeConfig;
+  handoff: HandoffConfig;
 };

@@ -1,4 +1,7 @@
+import { UserDto } from '../../users/dto/user.dto';
+
 import { ClientDto } from '../../clients/dto/client.dto';
+import { ConversationStatusEnum } from '../conversation-status.enum';
 
 import {
   // decorators here
@@ -12,6 +15,7 @@ import {
   IsNotEmptyObject,
   IsOptional,
   IsString,
+  IsEnum,
 } from 'class-validator';
 
 import {
@@ -20,14 +24,18 @@ import {
 } from '@nestjs/swagger';
 
 export class CreateConversationDto {
+  assignee?: UserDto | null;
+
   lastMessageAt?: Date | null;
 
   @ApiProperty({
-    required: true,
-    type: () => String,
+    required: false,
+    enum: ConversationStatusEnum,
+    default: ConversationStatusEnum.open,
   })
-  @IsString()
-  status: string;
+  @IsOptional()
+  @IsEnum(ConversationStatusEnum)
+  status?: ConversationStatusEnum;
 
   @ApiProperty({
     required: true,

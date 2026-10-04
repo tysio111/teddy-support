@@ -180,6 +180,9 @@ function createService(
           Promise.resolve({ id, ...payload }),
         ),
     },
+    handoffsService: {
+      open: jest.fn().mockResolvedValue({ id: 'handoff-1' }),
+    },
     actionExecutionsService: {
       record: jest
         .fn()
@@ -415,6 +418,10 @@ describe('IntentGraphService', () => {
         expect.stringContaining('passing your request to a member of our team'),
       ]);
       expect(statusUpdates(deps)).toEqual([['intent-1', 'escalated']]);
+      expect(deps.handoffsService.open).toHaveBeenCalledWith(conversation, {
+        reason: IntentOutcomeEnum.belowThreshold,
+        context: expect.objectContaining({ intent: null, error: null }),
+      });
     });
   });
 
@@ -639,6 +646,14 @@ describe('IntentGraphService', () => {
       expect(state.outcome).toBe(IntentOutcomeEnum.circuitOpen);
       expect(state.escalated).toBe(true);
       expect(deps.actionExecutorService.execute).not.toHaveBeenCalled();
+      expect(deps.handoffsService.open).toHaveBeenCalledWith(conversation, {
+        reason: IntentOutcomeEnum.circuitOpen,
+        context: expect.objectContaining({
+          intent: expect.objectContaining({ actionName: orderAction.name }),
+          parameters: { orderId: '123' },
+          failedExecutions: [],
+        }),
+      });
     });
 
     it('should send a canned reply when reply generation fails', async () => {

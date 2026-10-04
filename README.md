@@ -115,6 +115,8 @@ erDiagram
   STATUS ||--o{ USER : ""
   USER ||--o{ SESSION : ""
   USER |o--o| FILE : photo
+  CONVERSATION ||--o{ HANDOFF : "escalated in"
+  USER |o--o{ HANDOFF : "assigned to"
 
   CLIENT {
     uuid id
@@ -125,8 +127,18 @@ erDiagram
   CONVERSATION {
     uuid id
     string channel
-    string status
+    enum status
     datetime lastMessageAt
+  }
+  HANDOFF {
+    uuid id
+    string reason
+    enum status
+    text context
+    text summary
+    enum summaryStatus
+    datetime assignedAt
+    datetime closedAt
   }
   MESSAGE {
     uuid id
@@ -188,6 +200,8 @@ erDiagram
 | Detected intent status | `detected`, `below_threshold`, `needs_clarification`, `awaiting_confirmation`, `declined`, `executed`, `execution_failed`, `escalated`, `failed` |
 | Action execution status | `success`, `failed` |
 | Message sender | `client`, `agent`, `bot` |
+| Conversation status | `open` (bot handles it), `escalated`, `assigned` (bot paused), `resolved` |
+| Hand-off status | `pending`, `assigned`, `released` (handed back to the bot), `resolved` |
 | Resource status (action extraction) | `uploaded`, `processing`, `extracted`, `failed` |
 | Resource index status (knowledge) | `indexing`, `indexed`, `failed` |
 
@@ -268,7 +282,7 @@ Any node whose retries run out routes to `handleError`. The live diagram, genera
 | `finalizeExecution` | IO | Sets `executed` or `execution_failed` |
 | `generateResponse` | LLM | Writes the reply to the client from the action result. If the LLM fails, a canned reply is sent instead |
 | `answerFromKnowledge` | LLM | Runs the [RAG pipeline](#answering) and replies with citations, or sets `no_answer` |
-| `handleError` / `escalateToHuman` | IO | Marks the intent `failed` or `escalated` and sends a hand-off message |
+| `handleError` / `escalateToHuman` | IO | Marks the intent `failed` or `escalated`, sends a hand-off message and opens a [hand-off](#human-hand-off) |
 
 Nodes live in [src/intent-recognition/graph/nodes](src/intent-recognition/graph/nodes/) and prompts in [src/intent-recognition/prompts](src/intent-recognition/prompts/).
 
@@ -397,6 +411,27 @@ stateDiagram-v2
 
 Extracted actions are saved with status `draft`. An admin reviews them, adds credentials and sets them to `active` before the intent graph can use them. Re-running extraction replaces earlier drafts and leaves active actions alone.
 
+## Human hand-off
+
+When the graph escalates, `escalateToHuman` opens a `Handoff` (reason = the run's outcome) and sets the conversation to `escalated`. Client messages to an `escalated` or `assigned` conversation do not run the bot. A client message to a `resolved` conversation reopens it for the bot.
+
+Each hand-off stores two things for the agent:
+
+- `context`: facts the graph already had (top action and confidence, extracted and missing parameters, failed executions, knowledge query, error), copied verbatim.
+- `summary`: written in the background by Haiku (`HANDOFF_SUMMARY_MODEL`) from the last `HANDOFF_SUMMARY_HISTORY_LIMIT` messages. It contains the goal, what was tried, open questions, a suggested next step, sentiment and language. `summaryStatus` is `pending`, `ready` or `failed`.
+
+```mermaid
+stateDiagram-v2
+  [*] --> pending: escalateToHuman / POST /handoffs
+  pending --> assigned: assign, or first agent reply
+  pending --> released: release
+  assigned --> released: release (conversation open, bot resumes)
+  pending --> resolved: resolve
+  assigned --> resolved: resolve
+```
+
+Only the assignee or an admin can reply, release or resolve an assigned hand-off. Agents can only assign themselves; admins can assign anyone. A conversation has at most one active hand-off, so escalating again returns the existing one.
+
 ## REST API
 
 All routes are under `/api/v1` and documented with Swagger at `/docs`. Authentication uses email + password with JWT access and refresh tokens.
@@ -405,6 +440,7 @@ All routes are under `/api/v1` and documented with Swagger at `/docs`. Authentic
 | --- | --- | --- |
 | `/auth/*` | public / JWT | Register, confirm email, login, refresh, forgot and reset password, `me` |
 | `/clients`, `/conversations`, `/messages` | admin, user | CRUD. Creating a message triggers intent recognition |
+| `/handoffs` | admin, user | Agent inbox. `GET /handoffs?status=pending&assignee=me`, `POST /handoffs` (manual escalation), `POST /handoffs/:id/assign\|messages\|release\|resolve\|summary` |
 | `/actions`, `/action-parameters` | admin | Action catalog. `GET /actions?status=draft&resourceId=…` |
 | `/detected-intents`, `/action-executions` | admin | Audit trail of what the bot detected and called |
 | `/resources` | admin | Documents that feed doc extraction and the knowledge base |

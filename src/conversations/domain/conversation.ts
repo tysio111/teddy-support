@@ -1,14 +1,23 @@
+import { User } from '../../users/domain/user';
 import { Exclude } from 'class-transformer';
 import { Client } from '../../clients/domain/client';
+import { ConversationStatusEnum } from '../conversation-status.enum';
 
 import { ApiProperty } from '@nestjs/swagger';
 
 export class Conversation {
+  // The agent who owns the conversation while it is handed off.
+  @ApiProperty({
+    type: () => User,
+    nullable: true,
+  })
+  assignee?: User | null;
+
   @Exclude({ toPlainOnly: true })
   lastMessageAt?: Date | null;
 
   @ApiProperty({
-    type: () => String,
+    enum: ConversationStatusEnum,
     nullable: false,
   })
   status: string;

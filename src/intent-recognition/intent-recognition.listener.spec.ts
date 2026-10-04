@@ -7,6 +7,8 @@ import {
 } from '../messages/events/message-created.event';
 import { IntentGraphService } from './graph/intent-graph.service';
 import { IntentRecognitionListener } from './intent-recognition.listener';
+import { ConversationsService } from '../conversations/conversations.service';
+import { BOT_PAUSED_STATUSES } from '../conversations/conversation-status.enum';
 
 const result = (outcome: string) => ({
   outcome,
@@ -28,11 +30,23 @@ describe('IntentRecognitionListener', () => {
       resume: jest.fn().mockResolvedValue(result('executed')),
       getPendingInput: jest.fn().mockResolvedValue(null),
     };
+    const conversationsService = {
+      findById: jest
+        .fn()
+        .mockImplementation((id: string) =>
+          Promise.resolve({ id, status: 'open' }),
+        ),
+      setStatus: jest.fn().mockResolvedValue(undefined),
+      isBotPaused: jest.fn(({ status }: { status: string }) =>
+        BOT_PAUSED_STATUSES.includes(status),
+      ),
+    };
     const moduleRef = await Test.createTestingModule({
       imports: [EventEmitterModule.forRoot()],
       providers: [
         IntentRecognitionListener,
         { provide: IntentGraphService, useValue: intentGraphService },
+        { provide: ConversationsService, useValue: conversationsService },
         {
           provide: ConfigService,
           useValue: {
@@ -48,6 +62,7 @@ describe('IntentRecognitionListener', () => {
       eventEmitter: moduleRef.get(EventEmitter2),
       listener: moduleRef.get(IntentRecognitionListener),
       intentGraphService,
+      conversationsService,
     };
   }
 
@@ -71,6 +86,39 @@ describe('IntentRecognitionListener', () => {
 
     expect(intentGraphService.run).toHaveBeenCalledWith(input);
     expect(intentGraphService.resume).not.toHaveBeenCalled();
+  });
+
+  it('should not run the bot while an agent handles the conversation', async () => {
+    const { eventEmitter, intentGraphService, conversationsService } =
+      await setup();
+    conversationsService.findById.mockResolvedValue({
+      id: 'conversation-1',
+      status: 'assigned',
+    });
+
+    eventEmitter.emit(MESSAGE_CREATED_EVENT, event('client'));
+    await flush();
+
+    expect(intentGraphService.run).not.toHaveBeenCalled();
+    expect(intentGraphService.resume).not.toHaveBeenCalled();
+  });
+
+  it('should reopen a resolved conversation when the client writes again', async () => {
+    const { eventEmitter, intentGraphService, conversationsService } =
+      await setup();
+    conversationsService.findById.mockResolvedValue({
+      id: 'conversation-1',
+      status: 'resolved',
+    });
+
+    eventEmitter.emit(MESSAGE_CREATED_EVENT, event('client'));
+    await flush();
+
+    expect(conversationsService.setStatus).toHaveBeenCalledWith(
+      'conversation-1',
+      'open',
+    );
+    expect(intentGraphService.run).toHaveBeenCalledWith(input);
   });
 
   it('should resume a run that is waiting for the client', async () => {

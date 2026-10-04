@@ -7,6 +7,8 @@ import {
   MessageCreatedEvent,
 } from '../messages/events/message-created.event';
 import { MessageSenderEnum } from '../messages/message-sender.enum';
+import { ConversationsService } from '../conversations/conversations.service';
+import { ConversationStatusEnum } from '../conversations/conversation-status.enum';
 import {
   IntentGraphInput,
   IntentGraphRunResult,
@@ -37,6 +39,7 @@ export class IntentRecognitionListener implements OnModuleDestroy {
   constructor(
     private readonly configService: ConfigService<AllConfigType>,
     private readonly intentGraphService: IntentGraphService,
+    private readonly conversationsService: ConversationsService,
   ) {}
 
   // Fire-and-forget: runs after the HTTP response and must never throw.
@@ -124,6 +127,9 @@ export class IntentRecognitionListener implements OnModuleDestroy {
     };
 
     try {
+      if (!(await this.isBotActive(conversationId))) {
+        return;
+      }
       this.log(input, await this.recognize(input));
     } catch (error) {
       this.logger.error(
@@ -131,6 +137,34 @@ export class IntentRecognitionListener implements OnModuleDestroy {
         error instanceof Error ? error.stack : String(error),
       );
     }
+  }
+
+  // Checked after the debounce window, so a conversation escalated or picked
+  // up by an agent meanwhile is not answered by the bot.
+  private async isBotActive(conversationId: string): Promise<boolean> {
+    const conversation =
+      await this.conversationsService.findById(conversationId);
+    if (!conversation) {
+      // The graph handles (and logs) a missing conversation.
+      return true;
+    }
+
+    if (this.conversationsService.isBotPaused(conversation)) {
+      this.logger.log(
+        `Conversation ${conversationId} is ${conversation.status}: bot paused`,
+      );
+      return false;
+    }
+
+    // The client came back after the conversation was resolved.
+    if (conversation.status === ConversationStatusEnum.resolved) {
+      await this.conversationsService.setStatus(
+        conversationId,
+        ConversationStatusEnum.open,
+      );
+    }
+
+    return true;
   }
 
   private async process(

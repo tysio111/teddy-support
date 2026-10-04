@@ -17,6 +17,10 @@ import { createInterface } from 'node:readline/promises';
 import { DataSource } from 'typeorm';
 import { ConversationEntity } from '../../conversations/infrastructure/persistence/relational/entities/conversation.entity';
 import { Conversation } from '../../conversations/domain/conversation';
+import {
+  BOT_PAUSED_STATUSES,
+  ConversationStatusEnum,
+} from '../../conversations/conversation-status.enum';
 import { Message } from '../../messages/domain/message';
 import { MessageSenderEnum } from '../../messages/message-sender.enum';
 import { MessageRepository } from '../../messages/infrastructure/persistence/message.repository';
@@ -117,6 +121,21 @@ async function send(
     sender: MessageSenderEnum.client,
     conversation,
   });
+
+  // Same rule as the listener: an escalated conversation belongs to an agent.
+  const conversations = context.dataSource.getRepository(ConversationEntity);
+  const { status } = await conversations.findOneByOrFail({
+    id: conversation.id,
+  });
+  if (BOT_PAUSED_STATUSES.includes(status)) {
+    console.log(`bot paused (${status}): an agent handles this conversation`);
+    return;
+  }
+  if (status === ConversationStatusEnum.resolved) {
+    await conversations.update(conversation.id, {
+      status: ConversationStatusEnum.open,
+    });
+  }
 
   const started = Date.now();
   let result: IntentGraphRunResult;
@@ -260,7 +279,7 @@ async function createConversation(
     repository.create({
       client: from.client,
       channel: from.channel,
-      status: 'open',
+      status: ConversationStatusEnum.open,
     }),
   );
   return { ...conversation, client: from.client };

@@ -2,6 +2,7 @@ import { ClientEntity } from '../../../../clients/infrastructure/persistence/rel
 import { ConversationEntity } from '../../../../conversations/infrastructure/persistence/relational/entities/conversation.entity';
 import { MessageEntity } from '../../../../messages/infrastructure/persistence/relational/entities/message.entity';
 import { MessageSenderEnum } from '../../../../messages/message-sender.enum';
+import { ConversationStatusEnum } from '../../../../conversations/conversation-status.enum';
 import { DataSource } from 'typeorm';
 import { Seeder } from 'typeorm-extension';
 
@@ -20,7 +21,7 @@ const SHOP_CONVERSATIONS: SeedConversation[] = [
     // Fresh conversation for clean single-turn tests.
     clientEmail: 'anna.kowalska@example.com',
     channel: 'web_chat',
-    status: 'open',
+    status: ConversationStatusEnum.open,
     messages: [],
   },
   {
@@ -28,7 +29,7 @@ const SHOP_CONVERSATIONS: SeedConversation[] = [
     // reuse ORD-100234 for track_shipment.
     clientEmail: 'mark.schmidt@example.com',
     channel: 'web_chat',
-    status: 'open',
+    status: ConversationStatusEnum.open,
     messages: [
       [MessageSenderEnum.client, 'Hi, I ordered a rain jacket last week.'],
       [
@@ -47,7 +48,7 @@ const SHOP_CONVERSATIONS: SeedConversation[] = [
     // to return it" to get request_return with confirmation.
     clientEmail: 'julia.novak@example.com',
     channel: 'email',
-    status: 'open',
+    status: ConversationStatusEnum.open,
     messages: [
       [
         MessageSenderEnum.client,
@@ -63,7 +64,7 @@ const SHOP_CONVERSATIONS: SeedConversation[] = [
     // Closed and handed to a human: history with an agent reply.
     clientEmail: 'guest.buyer@example.com',
     channel: 'email',
-    status: 'closed',
+    status: ConversationStatusEnum.resolved,
     messages: [
       [
         MessageSenderEnum.client,

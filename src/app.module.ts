@@ -10,6 +10,7 @@ import fileConfig from './files/config/file.config';
 import intentRecognitionConfig from './intent-recognition/config/intent-recognition.config';
 import docExtractionConfig from './doc-extraction/config/doc-extraction.config';
 import knowledgeConfig from './knowledge/config/knowledge.config';
+import handoffConfig from './handoffs/config/handoff.config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import path from 'path';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -52,8 +53,11 @@ import { DocExtractionModule } from './doc-extraction/doc-extraction.module';
 
 import { KnowledgeModule } from './knowledge/knowledge.module';
 
+import { HandoffsModule } from './handoffs/handoffs.module';
+
 @Module({
   imports: [
+    HandoffsModule,
     EventEmitterModule.forRoot(),
     IntentRecognitionModule,
     DocExtractionModule,
@@ -77,6 +81,7 @@ import { KnowledgeModule } from './knowledge/knowledge.module';
         intentRecognitionConfig,
         docExtractionConfig,
         knowledgeConfig,
+        handoffConfig,
       ],
       envFilePath: ['.env'],
     }),

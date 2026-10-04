@@ -5,6 +5,7 @@ import { ActionsService } from '../actions/actions.service';
 import { ActionParametersService } from '../action-parameters/action-parameters.service';
 import { ActionExecutionsService } from '../action-executions/action-executions.service';
 import { DetectedIntentsService } from '../detected-intents/detected-intents.service';
+import { HandoffsService } from '../handoffs/handoffs.service';
 import { KnowledgeService } from '../knowledge/knowledge.service';
 import { MessagesService } from '../messages/messages.service';
 import { ActionExecutorService } from './execution/action-executor.service';
@@ -27,6 +28,7 @@ export const intentGraphServiceProvider: Provider<IntentGraphService> = {
     DetectedIntentsService,
     ActionExecutionsService,
     KnowledgeService,
+    HandoffsService,
   ],
   useFactory: async (
     configService: ConfigService<AllConfigType>,
@@ -36,6 +38,7 @@ export const intentGraphServiceProvider: Provider<IntentGraphService> = {
     detectedIntentsService: DetectedIntentsService,
     actionExecutionsService: ActionExecutionsService,
     knowledgeService: KnowledgeService,
+    handoffsService: HandoffsService,
   ) => {
     const config = configService.getOrThrow('intentRecognition', {
       infer: true,
@@ -61,6 +64,7 @@ export const intentGraphServiceProvider: Provider<IntentGraphService> = {
         actionExecutionsService,
       ),
       knowledgeService,
+      handoffsService,
     });
 
     return new IntentGraphService(graph, checkpointer, config);

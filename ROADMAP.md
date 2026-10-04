@@ -1,19 +1,19 @@
 # Roadmap
 
-Candidate features for Teddy Support, based on what [README.md](README.md) describes and what `src/` contains today. None of them are implemented yet. The code currently has no WebSocket or SSE, no webhooks, no feedback or CSAT, no rate limiting, no PII redaction and no scheduled jobs. `Conversation.status` is a free-form string, and an escalation only sends a hand-off message; there is no agent workflow behind it. Events and the per-conversation lock are in-process only, the deterministic bot replies are English only, and CI does not run the unit tests.
+Candidate features for Teddy Support, based on what [README.md](README.md) describes and what `src/` contains today. Apart from the hand-off inbox and summary, none of them are implemented yet. The code currently has no WebSocket or SSE, no webhooks, no feedback or CSAT, no rate limiting, no PII redaction and no scheduled jobs. Events and the per-conversation lock are in-process only, the deterministic bot replies are English only, and CI does not run the unit tests.
 
 ## Suggested order
 
 1. Unit tests in CI and durable message processing, because both are cheap and protect everything else.
-2. Human hand-off inbox and summary, because escalations currently go nowhere.
+2. ~~Human hand-off inbox and summary~~ (done, see [README](README.md#human-hand-off)).
 3. Feedback and analytics, so there is a way to measure everything else.
 4. Streaming and channel adapters.
 5. PII redaction and rate limiting.
 
 ## 1. Human hand-off (the biggest gap)
 
-- **Agent inbox / escalation queue**: when a run escalates, set `conversation.status = escalated`, using an enum (`open`, `bot`, `escalated`, `assigned`, `resolved`) instead of the free-form string. Assign the conversation to a `user` and pause the bot until it is handed back. The `agent` sender already exists in `MessageSender`.
-- **Hand-off summary**: Haiku summarises the conversation, the detected intents, the collected parameters and the failed executions, so the agent does not have to read the whole history.
+- ~~**Agent inbox / escalation queue**~~ and ~~**hand-off summary**~~: done (`/handoffs`, `ConversationStatusEnum`, Haiku summary).
+- **Escalate on request**: "I want to talk to a human" currently ends as `no_intent` when the knowledge base is off. Detect it explicitly and escalate.
 - **Agent copilot**: suggested replies drafted from the knowledge base and actions, which the agent approves or edits before sending.
 - **SLA and routing**: assign by skill, language or load, and escalate again when an SLA is breached (`@nestjs/schedule`).
 
