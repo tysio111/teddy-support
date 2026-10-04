@@ -11,6 +11,7 @@ import { HandoffsService } from './handoffs.service';
 import { HandoffsController } from './handoffs.controller';
 import { HandoffSummaryListener } from './handoff-summary.listener';
 import { HandoffLlmService } from './llm/handoff-llm.service';
+import { PiiRedactor } from '../privacy/pii/pii-redactor';
 import { RelationalHandoffPersistenceModule } from './infrastructure/persistence/relational/relational-persistence.module';
 
 @Module({
@@ -34,6 +35,10 @@ import { RelationalHandoffPersistenceModule } from './infrastructure/persistence
       useFactory: (configService: ConfigService<AllConfigType>) =>
         new HandoffLlmService(
           configService.getOrThrow('handoff', { infer: true }),
+          new PiiRedactor(
+            configService.getOrThrow('privacy', { infer: true })
+              .piiRedactionEnabled,
+          ),
         ),
     },
   ],

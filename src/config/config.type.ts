@@ -7,6 +7,7 @@ import { IntentRecognitionConfig } from '../intent-recognition/config/intent-rec
 import { DocExtractionConfig } from '../doc-extraction/config/doc-extraction-config.type';
 import { KnowledgeConfig } from '../knowledge/config/knowledge-config.type';
 import { HandoffConfig } from '../handoffs/config/handoff-config.type';
+import { PrivacyConfig } from '../privacy/config/privacy-config.type';
 
 export type AllConfigType = {
   app: AppConfig;
@@ -18,4 +19,5 @@ export type AllConfigType = {
   docExtraction: DocExtractionConfig;
   knowledge: KnowledgeConfig;
   handoff: HandoffConfig;
+  privacy: PrivacyConfig;
 };

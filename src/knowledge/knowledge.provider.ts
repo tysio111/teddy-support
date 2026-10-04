@@ -2,6 +2,7 @@ import { Provider } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AllConfigType } from '../config/config.type';
+import { PiiRedactor } from '../privacy/pii/pii-redactor';
 import { FilesService } from '../files/files.service';
 import { ResourcesService } from '../resources/resources.service';
 import { KnowledgeIndexerService } from './ingestion/knowledge-indexer.service';
@@ -34,7 +35,14 @@ export const knowledgeProviders: Provider[] = [
       eventEmitter: EventEmitter2,
     ): KnowledgeComponents => {
       const config = configService.getOrThrow('knowledge', { infer: true });
-      const llm = new KnowledgeLlmService(createKnowledgeChatModels(config));
+      const redactor = new PiiRedactor(
+        configService.getOrThrow('privacy', { infer: true })
+          .piiRedactionEnabled,
+      );
+      const llm = new KnowledgeLlmService(
+        createKnowledgeChatModels(config),
+        redactor,
+      );
       const embedder = createDenseEmbedder(config);
       const sparseEncoder = new SparseEncoder(config.language);
       const store = createVectorStore(config);
@@ -42,7 +50,14 @@ export const knowledgeProviders: Provider[] = [
       return {
         knowledgeService: new KnowledgeService(
           config,
-          new KnowledgeRetriever(config, llm, embedder, sparseEncoder, store),
+          new KnowledgeRetriever(
+            config,
+            llm,
+            embedder,
+            sparseEncoder,
+            store,
+            redactor,
+          ),
           llm,
         ),
         knowledgeIndexerService: new KnowledgeIndexerService(

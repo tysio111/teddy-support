@@ -2,6 +2,7 @@ import { ChatAnthropic } from '@langchain/anthropic';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { z } from 'zod';
 import { Message } from '../../messages/domain/message';
+import { PiiRedactor } from '../../privacy/pii/pii-redactor';
 import {
   samplingOptions,
   structuredOutputMethod,
@@ -26,7 +27,10 @@ const summarySchema = z.object({
 export class HandoffLlmService {
   private readonly model: ChatAnthropic | null;
 
-  constructor(config: HandoffConfig) {
+  constructor(
+    config: HandoffConfig,
+    private readonly redactor = new PiiRedactor(),
+  ) {
     // ChatAnthropic throws without an API key, so fail on use instead of boot.
     this.model = config.anthropicApiKey
       ? new ChatAnthropic({
@@ -48,11 +52,15 @@ export class HandoffLlmService {
       throw new Error('Hand-off summary needs ANTHROPIC_API_KEY');
     }
 
-    return this.model
-      .withStructuredOutput<HandoffSummary>(summarySchema, {
-        name: 'handoff_summary',
-        method: structuredOutputMethod(this.model.model),
-      })
+    // The agent reading the summary sees the transcript too, so placeholders
+    // are restored rather than left in.
+    return this.redactor
+      .wrap(
+        this.model.withStructuredOutput<HandoffSummary>(summarySchema, {
+          name: 'handoff_summary',
+          method: structuredOutputMethod(this.model.model),
+        }),
+      )
       .invoke([
         new SystemMessage(SUMMARY_SYSTEM_PROMPT),
         new HumanMessage(buildSummaryPrompt(input)),

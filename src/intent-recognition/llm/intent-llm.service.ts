@@ -1,12 +1,16 @@
 import { ChatAnthropic } from '@langchain/anthropic';
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
-import { HumanMessage, SystemMessage } from '@langchain/core/messages';
+import {
+  BaseMessage,
+  HumanMessage,
+  SystemMessage,
+} from '@langchain/core/messages';
 import { Runnable } from '@langchain/core/runnables';
-import { BaseLanguageModelInput } from '@langchain/core/language_models/base';
 import { z } from 'zod';
 import { Action } from '../../actions/domain/action';
 import { ActionParameter } from '../../action-parameters/domain/action-parameter';
 import { Message } from '../../messages/domain/message';
+import { PiiRedactor } from '../../privacy/pii/pii-redactor';
 import { structuredOutputMethod } from '../../utils/anthropic-models';
 import {
   CatalogAction,
@@ -61,7 +65,10 @@ const replySchema = z.object({
 });
 
 export class IntentLlmService {
-  constructor(private readonly models: ChatModels | null) {}
+  constructor(
+    private readonly models: ChatModels | null,
+    private readonly redactor = new PiiRedactor(),
+  ) {}
 
   async screenMessage(content: string): Promise<GuardrailVerdictEnum> {
     const result = await this.structured(
@@ -143,10 +150,12 @@ export class IntentLlmService {
 
   // Structured output must be bound per model before chaining fallbacks:
   // `withFallbacks` returns a plain Runnable without `withStructuredOutput`.
+  // PII is replaced with placeholders for the call and restored in the output,
+  // so extracted parameters and replies carry the real values.
   private structured<T extends Record<string, any>>(
     schema: z.ZodType<T>,
     name: string,
-  ): Runnable<BaseLanguageModelInput, T> {
+  ): Runnable<BaseMessage[], T> {
     const { primary, fallback } = this.getModels();
     const bind = (model: BaseChatModel) =>
       model.withStructuredOutput<T>(schema, {
@@ -154,9 +163,9 @@ export class IntentLlmService {
         method: structuredOutputMethod((model as ChatAnthropic).model ?? ''),
       });
 
-    return fallback
-      ? bind(primary).withFallbacks([bind(fallback)])
-      : bind(primary);
+    return this.redactor.wrap(
+      fallback ? bind(primary).withFallbacks([bind(fallback)]) : bind(primary),
+    );
   }
 
   private getModels(): ChatModels {

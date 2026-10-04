@@ -89,6 +89,11 @@ export class IntentGraphService {
     };
   }
 
+  // Drops the conversation's checkpoints, which hold its messages.
+  deleteThread(conversationId: string): Promise<void> {
+    return this.checkpointer.deleteThread(conversationId);
+  }
+
   async drawMermaid(): Promise<string> {
     return (await this.graph.getGraphAsync()).drawMermaid();
   }

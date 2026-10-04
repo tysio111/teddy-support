@@ -8,6 +8,7 @@ import { DetectedIntentsService } from '../detected-intents/detected-intents.ser
 import { HandoffsService } from '../handoffs/handoffs.service';
 import { KnowledgeService } from '../knowledge/knowledge.service';
 import { MessagesService } from '../messages/messages.service';
+import { PiiRedactor } from '../privacy/pii/pii-redactor';
 import { ActionExecutorService } from './execution/action-executor.service';
 import { CircuitBreakerService } from './execution/circuit-breaker.service';
 import { createCheckpointer } from './graph/checkpointer';
@@ -57,7 +58,13 @@ export const intentGraphServiceProvider: Provider<IntentGraphService> = {
       actionParametersService,
       detectedIntentsService,
       actionExecutionsService,
-      intentLlmService: new IntentLlmService(createChatModels(config)),
+      intentLlmService: new IntentLlmService(
+        createChatModels(config),
+        new PiiRedactor(
+          configService.getOrThrow('privacy', { infer: true })
+            .piiRedactionEnabled,
+        ),
+      ),
       actionExecutorService: new ActionExecutorService(config),
       circuitBreakerService: new CircuitBreakerService(
         config,

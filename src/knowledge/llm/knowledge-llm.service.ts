@@ -1,5 +1,6 @@
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { z } from 'zod';
+import { PiiRedactor } from '../../privacy/pii/pii-redactor';
 import {
   ConversationTurn,
   KnowledgeAnswerStatusEnum,
@@ -65,8 +66,14 @@ export type GeneratedAnswer = {
   usedChunks: number[];
 };
 
+// Every call runs through the PII redactor. Search strings (rewritten query,
+// HyDE passage) keep their placeholders because they are sent on to the
+// embedding provider; answers and chunk contexts get the values back.
 export class KnowledgeLlmService {
-  constructor(private readonly models: KnowledgeChatModels | null) {}
+  constructor(
+    private readonly models: KnowledgeChatModels | null,
+    private readonly redactor = new PiiRedactor(),
+  ) {}
 
   async rewriteQuery(input: {
     history: ConversationTurn[];
@@ -74,28 +81,28 @@ export class KnowledgeLlmService {
     language?: string;
   }): Promise<string> {
     const { fast } = this.getModels();
-    const result = await withStructuredOutput(
-      fast,
-      rewriteSchema,
-      'search_query',
-    ).invoke([
-      new SystemMessage(REWRITE_SYSTEM_PROMPT),
-      new HumanMessage(buildRewritePrompt(input)),
-    ]);
+    const result = await this.redactor
+      .wrap(withStructuredOutput(fast, rewriteSchema, 'search_query'), {
+        restore: false,
+      })
+      .invoke([
+        new SystemMessage(REWRITE_SYSTEM_PROMPT),
+        new HumanMessage(buildRewritePrompt(input)),
+      ]);
 
-    return result.query.trim() || input.message;
+    return result.query.trim() || this.redactor.redact(input.message);
   }
 
   async hypotheticalAnswer(query: string): Promise<string> {
     const { fast } = this.getModels();
-    const result = await withStructuredOutput(
-      fast,
-      hydeSchema,
-      'help_center_passage',
-    ).invoke([
-      new SystemMessage(HYDE_SYSTEM_PROMPT),
-      new HumanMessage(buildHydePrompt(query)),
-    ]);
+    const result = await this.redactor
+      .wrap(withStructuredOutput(fast, hydeSchema, 'help_center_passage'), {
+        restore: false,
+      })
+      .invoke([
+        new SystemMessage(HYDE_SYSTEM_PROMPT),
+        new HumanMessage(buildHydePrompt(query)),
+      ]);
 
     return result.passage;
   }
@@ -104,14 +111,12 @@ export class KnowledgeLlmService {
   // model skipped count as unrelated.
   async rerank(query: string, candidates: RetrievedChunk[]): Promise<number[]> {
     const { fast } = this.getModels();
-    const result = await withStructuredOutput(
-      fast,
-      rerankSchema,
-      'rate_passages',
-    ).invoke([
-      new SystemMessage(RERANK_SYSTEM_PROMPT),
-      new HumanMessage(buildRerankPrompt(query, candidates)),
-    ]);
+    const result = await this.redactor
+      .wrap(withStructuredOutput(fast, rerankSchema, 'rate_passages'))
+      .invoke([
+        new SystemMessage(RERANK_SYSTEM_PROMPT),
+        new HumanMessage(buildRerankPrompt(query, candidates)),
+      ]);
 
     const relevance = candidates.map(() => 0);
     for (const { passage, relevance: rating } of result.ratings) {
@@ -130,23 +135,21 @@ export class KnowledgeLlmService {
     chunks: { index: number; text: string }[];
   }): Promise<Map<number, string>> {
     const { fast } = this.getModels();
-    const result = await withStructuredOutput(
-      fast,
-      contextSchema,
-      'chunk_contexts',
-    ).invoke([
-      new SystemMessage(CONTEXTUALIZE_SYSTEM_PROMPT),
-      new HumanMessage({
-        content: [
-          {
-            type: 'text',
-            text: buildDocumentBlock(input.title, input.document),
-            cache_control: { type: 'ephemeral' },
-          },
-          { type: 'text', text: buildChunksPrompt(input.chunks) },
-        ],
-      }),
-    ]);
+    const result = await this.redactor
+      .wrap(withStructuredOutput(fast, contextSchema, 'chunk_contexts'))
+      .invoke([
+        new SystemMessage(CONTEXTUALIZE_SYSTEM_PROMPT),
+        new HumanMessage({
+          content: [
+            {
+              type: 'text',
+              text: buildDocumentBlock(input.title, input.document),
+              cache_control: { type: 'ephemeral' },
+            },
+            { type: 'text', text: buildChunksPrompt(input.chunks) },
+          ],
+        }),
+      ]);
 
     return new Map(
       result.contexts.map(({ chunk, context }) => [chunk, context.trim()]),
@@ -159,14 +162,12 @@ export class KnowledgeLlmService {
     chunks: RetrievedChunk[];
   }): Promise<GeneratedAnswer> {
     const { answer } = this.getModels();
-    const result = await withStructuredOutput(
-      answer,
-      answerSchema,
-      'answer',
-    ).invoke([
-      new SystemMessage(ANSWER_SYSTEM_PROMPT),
-      new HumanMessage(buildAnswerPrompt(input)),
-    ]);
+    const result = await this.redactor
+      .wrap(withStructuredOutput(answer, answerSchema, 'answer'))
+      .invoke([
+        new SystemMessage(ANSWER_SYSTEM_PROMPT),
+        new HumanMessage(buildAnswerPrompt(input)),
+      ]);
 
     const reply = result.reply.trim();
     if (result.kind === 'not_found' || !reply) {

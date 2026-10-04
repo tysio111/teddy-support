@@ -24,6 +24,7 @@ Admins can also upload API documentation and let Claude draft the action catalog
   - [Indexing](#indexing)
   - [Answering](#answering)
 - [Action extraction from API docs](#action-extraction-from-api-docs)
+- [Privacy](#privacy)
 - [REST API](#rest-api)
 - [Getting started](#getting-started)
 - [Configuration](#configuration)
@@ -432,6 +433,20 @@ stateDiagram-v2
 
 Only the assignee or an admin can reply, release or resolve an assigned hand-off. Agents can only assign themselves; admins can assign anyone. A conversation has at most one active hand-off, so escalating again returns the existing one.
 
+## Privacy
+
+Code in [src/privacy](src/privacy/).
+
+**PII redaction.** [PiiRedactor](src/privacy/pii/pii-redactor.ts) detects emails, card numbers (13-19 digits that pass the Luhn check) and phone numbers (international, or grouped like `600-700-800`). A bare run of digits is not treated as a phone, because it is more likely an order number.
+
+- *LLM calls*: every intent, knowledge and hand-off call is wrapped. Before the call, PII in the prompt is replaced with numbered placeholders (`[EMAIL_1]`). Afterwards the real values are put back into the output, so extracted parameters, replies and summaries still carry them. System prompts are not changed. The rewritten search query and the HyDE passage keep their placeholders, because they are sent on to Voyage for embedding.
+- *Logs*: the Nest logger ([RedactingLogger](src/privacy/pii/redacting-logger.ts)) and the TypeORM query log mask PII as `[EMAIL]`, `[CARD]` and `[PHONE]`. This covers error messages and stack traces.
+- *Not covered*: the database stores messages, extracted parameters and action payloads unredacted, and the business's action endpoints receive the real values. LangSmith traces of a graph run include the raw state; set `LANGSMITH_HIDE_INPUTS=true` / `LANGSMITH_HIDE_OUTPUTS=true` to keep them out. Action extraction runs on the business's own API docs and is not redacted.
+
+**GDPR erasure.** `DELETE /clients/:id/personal-data` (admin only) deletes the client with all their conversations, messages, detected intents, action executions and hand-offs in one transaction. It also deletes the intent graph checkpoints, which hold message content. The response reports how many rows were deleted per table.
+
+**Retention.** If `DATA_RETENTION_DAYS` is set, the app deletes conversations with no activity for that many days in the same way: on boot, then every `DATA_RETENTION_INTERVAL_MINUTES`. Conversations that are `escalated` or `assigned` are kept until an agent closes them. Client profiles that have no conversations left and have not been updated within the window are deleted too.
+
 ## REST API
 
 All routes are under `/api/v1` and documented with Swagger at `/docs`. Authentication uses email + password with JWT access and refresh tokens.
@@ -440,6 +455,7 @@ All routes are under `/api/v1` and documented with Swagger at `/docs`. Authentic
 | --- | --- | --- |
 | `/auth/*` | public / JWT | Register, confirm email, login, refresh, forgot and reset password, `me` |
 | `/clients`, `/conversations`, `/messages` | admin, user | CRUD. Creating a message triggers intent recognition |
+| `DELETE /clients/:id/personal-data` | admin | GDPR erasure of a client and everything recorded about them |
 | `/handoffs` | admin, user | Agent inbox. `GET /handoffs?status=pending&assignee=me`, `POST /handoffs` (manual escalation), `POST /handoffs/:id/assign\|messages\|release\|resolve\|summary` |
 | `/actions`, `/action-parameters` | admin | Action catalog. `GET /actions?status=draft&resourceId=…` |
 | `/detected-intents`, `/action-executions` | admin | Audit trail of what the bot detected and called |
@@ -526,6 +542,8 @@ All settings come from `.env` (see [env-example-relational](env-example-relation
 | `KNOWLEDGE_PREFETCH_LIMIT`, `KNOWLEDGE_RERANK_CANDIDATES`, `KNOWLEDGE_TOP_K`, `KNOWLEDGE_MIN_RELEVANCE` | `40`, `20`, `6`, `2` | Retrieval sizes |
 | `KNOWLEDGE_RERANK_ENABLED`, `KNOWLEDGE_HYDE_ENABLED` | `true`, `false` | Pipeline switches |
 | `KNOWLEDGE_HISTORY_LIMIT` | `6` | Turns used for query rewriting |
+
+**Privacy** ([privacy.config.ts](src/privacy/config/privacy.config.ts)): `PII_REDACTION_ENABLED` (`true`), `DATA_RETENTION_DAYS` (unset, so data is kept forever), `DATA_RETENTION_INTERVAL_MINUTES` (`60`).
 
 **Doc extraction**: `DOC_EXTRACTION_MODEL` (`claude-sonnet-5-5`), `DOC_EXTRACTION_MAX_TOKENS` (`16000`).
 

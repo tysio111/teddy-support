@@ -13,11 +13,22 @@ import { AppModule } from './app.module';
 import validationOptions from './utils/validation-options';
 import { AllConfigType } from './config/config.type';
 import { ResolvePromisesInterceptor } from './utils/serializer.interceptor';
+import { PiiRedactor } from './privacy/pii/pii-redactor';
+import { RedactingLogger } from './privacy/pii/redacting-logger';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // Boot logs are buffered until the redacting logger is installed.
+  const app = await NestFactory.create(AppModule, { bufferLogs: true });
   useContainer(app.select(AppModule), { fallbackOnErrors: true });
   const configService = app.get(ConfigService<AllConfigType>);
+  app.useLogger(
+    new RedactingLogger(
+      new PiiRedactor(
+        configService.getOrThrow('privacy', { infer: true })
+          .piiRedactionEnabled,
+      ),
+    ),
+  );
 
   app.use(
     helmet({

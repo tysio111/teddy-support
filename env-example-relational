@@ -132,3 +132,9 @@ LANGSMITH_PROJECT=teddy-support
 # Human hand-off: background summary for the agent inbox, uses ANTHROPIC_API_KEY
 HANDOFF_SUMMARY_MODEL=claude-haiku-4-5
 HANDOFF_SUMMARY_HISTORY_LIMIT=30
+
+# Privacy: mask card numbers, emails and phones in LLM prompts and logs
+PII_REDACTION_ENABLED=true
+# Delete conversations inactive for this many days (unset keeps them forever)
+# DATA_RETENTION_DAYS=365
+DATA_RETENTION_INTERVAL_MINUTES=60

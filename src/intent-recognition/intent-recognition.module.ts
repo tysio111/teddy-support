@@ -25,6 +25,7 @@ import { intentGraphServiceProvider } from './intent-recognition.provider';
   ],
   controllers: [IntentRecognitionController],
   providers: [intentGraphServiceProvider, IntentRecognitionListener],
+  exports: [IntentGraphService],
 })
 export class IntentRecognitionModule implements OnModuleDestroy {
   constructor(private readonly intentGraphService: IntentGraphService) {}

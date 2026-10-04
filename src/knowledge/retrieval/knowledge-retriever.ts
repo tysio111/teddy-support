@@ -1,3 +1,4 @@
+import { PiiRedactor } from '../../privacy/pii/pii-redactor';
 import { KnowledgeConfig } from '../config/knowledge-config.type';
 import { KnowledgeLlmService } from '../llm/knowledge-llm.service';
 import {
@@ -22,6 +23,7 @@ import { KnowledgeVectorStore } from './vector-store';
  * - Reranking rates the fused candidates 0-3 with the fast model and keeps
  *   those at or above `minRelevance`. Without it, the top fused results are
  *   used as they are.
+ * - The query reaches the embedding provider with PII masked.
  */
 export class KnowledgeRetriever {
   constructor(
@@ -30,6 +32,7 @@ export class KnowledgeRetriever {
     private readonly embedder: DenseEmbedder,
     private readonly sparseEncoder: SparseEncoder,
     private readonly store: KnowledgeVectorStore,
+    private readonly redactor = new PiiRedactor(),
   ) {}
 
   async retrieve({
@@ -55,7 +58,7 @@ export class KnowledgeRetriever {
             message,
             language: config.language,
           })
-        : message;
+        : this.redactor.redact(message);
     const hypotheticalAnswer = hyde
       ? await this.llm.hypotheticalAnswer(rewrittenQuery)
       : null;

@@ -1,6 +1,6 @@
 # Roadmap
 
-Candidate features for Teddy Support, based on what [README.md](README.md) describes and what `src/` contains today. Apart from the hand-off inbox and summary, none of them are implemented yet. The code currently has no WebSocket or SSE, no webhooks, no feedback or CSAT, no rate limiting, no PII redaction and no scheduled jobs. Events and the per-conversation lock are in-process only, the deterministic bot replies are English only, and CI does not run the unit tests.
+Candidate features for Teddy Support, based on what [README.md](README.md) describes and what `src/` contains today. Apart from the hand-off inbox and summary, and PII redaction with retention and GDPR erasure, none of them are implemented yet. The code currently has no WebSocket or SSE, no webhooks, no feedback or CSAT and no rate limiting. The only scheduled job is the retention purge, which runs on an in-process timer. Events and the per-conversation lock are in-process only, the deterministic bot replies are English only, and CI does not run the unit tests.
 
 ## Suggested order
 
@@ -8,7 +8,7 @@ Candidate features for Teddy Support, based on what [README.md](README.md) descr
 2. ~~Human hand-off inbox and summary~~ (done, see [README](README.md#human-hand-off)).
 3. Feedback and analytics, so there is a way to measure everything else.
 4. Streaming and channel adapters.
-5. PII redaction and rate limiting.
+5. ~~PII redaction~~ (done, see [README](README.md#privacy)) and rate limiting.
 
 ## 1. Human hand-off (the biggest gap)
 
@@ -36,7 +36,7 @@ Candidate features for Teddy Support, based on what [README.md](README.md) descr
 
 ## 4. Safety and compliance
 
-- **PII redaction** before LLM calls and logging (card numbers, emails, phones), plus data retention and GDPR deletion per client.
+- ~~**PII redaction**~~ before LLM calls and logging (card numbers, emails, phones), plus data retention and GDPR deletion per client: done (see [README](README.md#privacy)). Possible follow-ups: a GDPR data export (`GET /clients/:id/personal-data`), encrypting message content at rest, and NER-based detection of names and addresses.
 - **Output guardrail**: check the answer against the cited chunks and policy before sending it. Today only incoming messages are screened.
 - **Indirect prompt injection screening**: action responses and indexed help-centre documents also reach the LLM and are untrusted, but the guardrail only screens client messages.
 - **Rate limiting** per client or conversation (`@nestjs/throttler`) and a cost budget per conversation.
