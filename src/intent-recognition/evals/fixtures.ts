@@ -59,6 +59,8 @@ export type EvalCase = {
   // Earlier turns as [sender, content]; the last client turn is the message.
   transcript: [string, string][];
   expectedActionId: string | null;
+  // The client explicitly asks for a human (classification's humanRequested).
+  expectHumanRequested?: boolean;
   // Only the listed parameters are compared.
   expectedParameters?: ExtractedParameters;
 };
@@ -122,6 +124,40 @@ export const EVAL_CASES: EvalCase[] = [
       ],
     ],
     expectedActionId: null,
+  },
+  // Human requests: paraphrases the deterministic patterns do not catch, so
+  // only the LLM flag can detect them.
+  {
+    name: 'human request paraphrase',
+    transcript: [
+      ['client', 'Can someone from your team look at this instead of a bot?'],
+    ],
+    expectedActionId: null,
+    expectHumanRequested: true,
+  },
+  {
+    name: 'human request with an action',
+    transcript: [
+      [
+        'client',
+        'Forget the order status for 48213, just get a person on the line',
+      ],
+    ],
+    expectedActionId: null,
+    expectHumanRequested: true,
+  },
+  {
+    name: 'human request in Polish',
+    transcript: [['client', 'Wolę, żeby zajął się tym ktoś z obsługi klienta']],
+    expectedActionId: null,
+    expectHumanRequested: true,
+  },
+  {
+    name: 'frustration is not a human request',
+    transcript: [
+      ['client', 'This is ridiculous, order 7781 is two weeks late!'],
+    ],
+    expectedActionId: 'check_order_status',
   },
 ];
 

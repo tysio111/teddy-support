@@ -16,12 +16,17 @@ export function continueOrEnd<T extends string>(next: T) {
     state.outcome ? END : next;
 }
 
-// Messages that match no action (or arrive when there are none) go to the
-// knowledge base when it is enabled; other outcomes end the run.
+// An explicit request for a human escalates. Messages that match no action
+// (or arrive when there are none) go to the knowledge base when it is enabled;
+// other outcomes end the run.
 export function routeAfterClassification(
   state: IntentGraphStateType,
   knowledgeEnabled: boolean,
 ) {
+  if (state.outcome === IntentOutcomeEnum.humanRequested) {
+    return 'escalateToHuman';
+  }
+
   const unmatched =
     state.outcome === IntentOutcomeEnum.noIntent ||
     state.outcome === IntentOutcomeEnum.noActions;
@@ -92,6 +97,10 @@ export function routeAfterSelection(
 }
 
 export function reExtractSelected(state: IntentGraphStateType) {
+  if (state.outcome === IntentOutcomeEnum.superseded) {
+    return END;
+  }
+
   const extraction = state.candidateExtractions.find(
     ({ intentId }) => intentId === state.topIntent!.id,
   )!;

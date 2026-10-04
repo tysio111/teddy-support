@@ -1,6 +1,6 @@
 # Roadmap
 
-Candidate features for Teddy Support, based on what [README.md](README.md) describes and what `src/` contains today. Apart from the hand-off inbox and summary, PII redaction with retention and GDPR erasure, the output guardrail, and rate limiting with a cost budget, none of them are implemented yet. The code currently has no WebSocket or SSE, no webhooks and no feedback or CSAT. The only scheduled job is the retention purge, which runs on an in-process timer. Events and the per-conversation lock are in-process only, the deterministic bot replies are English only, and CI does not run the unit tests.
+Candidate features for Teddy Support, based on what [README.md](README.md) describes and what `src/` contains today. Apart from the hand-off inbox, summary and escalation on request, PII redaction with retention and GDPR erasure, the output guardrail, and rate limiting with a cost budget, none of them are implemented yet. The code currently has no WebSocket or SSE, no webhooks and no feedback or CSAT. The only scheduled job is the retention purge, which runs on an in-process timer. Events and the per-conversation lock are in-process only, the deterministic bot replies are English only, and CI does not run the unit tests.
 
 ## Suggested order
 
@@ -13,7 +13,7 @@ Candidate features for Teddy Support, based on what [README.md](README.md) descr
 ## 1. Human hand-off (the biggest gap)
 
 - ~~**Agent inbox / escalation queue**~~ and ~~**hand-off summary**~~: done (`/handoffs`, `ConversationStatusEnum`, Haiku summary).
-- **Escalate on request**: "I want to talk to a human" currently ends as `no_intent` when the knowledge base is off. Detect it explicitly and escalate.
+- ~~**Escalate on request**~~: done (`human_requested`, see [README](README.md#escalation-on-request)). Possible follow-up: a localised escalation reply.
 - **Agent copilot**: suggested replies drafted from the knowledge base and actions, which the agent approves or edits before sending.
 - **SLA and routing**: assign by skill, language or load, and escalate again when an SLA is breached (`@nestjs/schedule`).
 

@@ -100,7 +100,8 @@ const toHandleError = (_state: unknown, { node, error }: NodeError) =>
  *
  * Messages that match no action (or arrive when there are none) go from
  * classifyIntent to answerFromKnowledge when the knowledge base is enabled:
- * it replies, or escalates when the knowledge base has no answer.
+ * it replies, or escalates when the knowledge base has no answer. An explicit
+ * request for a human ("I want to talk to a person") escalates straight away.
  *
  * Failures: nodes retry transient errors (retryPolicy); once exhausted they
  * route to handleError → escalateToHuman. Low confidence, repeated missing
@@ -244,7 +245,7 @@ export function buildIntentGraph(deps: IntentGraphDeps) {
       .addConditionalEdges(
         'classifyIntent',
         (state) => routeAfterClassification(state, knowledgeService.enabled),
-        ['answerFromKnowledge', 'persistIntents', END],
+        ['answerFromKnowledge', 'persistIntents', 'escalateToHuman', END],
       )
       .addConditionalEdges('answerFromKnowledge', routeAfterKnowledge, [
         'escalateToHuman',
@@ -275,6 +276,7 @@ export function buildIntentGraph(deps: IntentGraphDeps) {
       .addEdge('askClarification', 'awaitClarification')
       .addConditionalEdges('awaitClarification', reExtractSelected, [
         'extractParameters',
+        END,
       ])
       .addEdge('askConfirmation', 'awaitConfirmation')
       .addConditionalEdges('awaitConfirmation', routeAfterConfirmation, [

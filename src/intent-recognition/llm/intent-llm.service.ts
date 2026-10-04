@@ -22,7 +22,7 @@ import {
   CatalogAction,
   ExtractedParameters,
   GuardrailVerdictEnum,
-  IntentCandidate,
+  Classification,
   ParameterIssue,
 } from '../intent-recognition.types';
 import {
@@ -60,6 +60,11 @@ const classificationSchema = z.object({
       }),
     )
     .describe('Candidate actions, most likely first. Empty if none match.'),
+  humanRequested: z
+    .boolean()
+    .describe(
+      'True only if the client explicitly asks to talk to a human agent',
+    ),
 });
 
 const guardrailSchema = z.object({
@@ -93,7 +98,7 @@ export class IntentLlmService {
     message: Message;
     catalog: CatalogAction[];
     maxCandidates: number;
-  }): Promise<IntentCandidate[]> {
+  }): Promise<Classification> {
     const result = await this.structured(
       classificationSchema,
       'classify_intents',
@@ -102,7 +107,10 @@ export class IntentLlmService {
       new HumanMessage(buildClassificationPrompt(input)),
     ]);
 
-    return result.intents;
+    return {
+      candidates: result.intents,
+      humanRequested: result.humanRequested,
+    };
   }
 
   async extractParameters(input: {

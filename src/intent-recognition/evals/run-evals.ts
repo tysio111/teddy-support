@@ -22,23 +22,34 @@ async function runCase(
   testCase: EvalCase,
 ): Promise<CaseResult> {
   const history = toMessages(testCase.transcript);
+  const classification = await llm.classify({
+    history,
+    message: history[history.length - 1],
+    catalog: EVAL_CATALOG,
+    maxCandidates: 3,
+  });
   const candidates = normalizeCandidates(
-    await llm.classify({
-      history,
-      message: history[history.length - 1],
-      catalog: EVAL_CATALOG,
-      maxCandidates: 3,
-    }),
+    classification.candidates,
     new Set(EVAL_CATALOG.map(({ action }) => action.id)),
     3,
   );
   const top = candidates[0];
+  // A human request escalates before any action runs (see classifyIntent).
   const predicted =
-    top && top.confidence >= CONFIDENCE_THRESHOLD ? top.actionId : null;
-  const classificationOk = predicted === testCase.expectedActionId;
+    !classification.humanRequested &&
+    top &&
+    top.confidence >= CONFIDENCE_THRESHOLD
+      ? top.actionId
+      : null;
+  const classificationOk =
+    classification.humanRequested ===
+      (testCase.expectHumanRequested ?? false) &&
+    predicted === testCase.expectedActionId;
 
   let parametersOk: boolean | null = null;
-  let detail = `predicted=${predicted ?? 'none'} (${top?.confidence ?? '-'})`;
+  let detail =
+    `predicted=${predicted ?? 'none'} (${top?.confidence ?? '-'})` +
+    (classification.humanRequested ? ' humanRequested' : '');
 
   if (classificationOk && predicted && testCase.expectedParameters) {
     const catalogAction = EVAL_CATALOG.find(

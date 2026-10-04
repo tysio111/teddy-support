@@ -7,6 +7,7 @@ import {
   buildClarificationQuestion,
   buildConfirmationQuestion,
 } from '../../prompts/bot-replies';
+import { matchesHumanRequest } from '../../prompts/human-request.prompt';
 import {
   ConfirmationAnswerEnum,
   InterruptPayload,
@@ -48,6 +49,12 @@ export function awaitClarification({
     logger.debug(
       `Intent ${state.topIntent!.id}: clarification received in message ${answer.messageId}`,
     );
+
+    // Asking for a human instead of answering: the listener processes the
+    // message from scratch, and classification escalates it.
+    if (matchesHumanRequest(await replyContent(messagesService, answer))) {
+      return { outcome: IntentOutcomeEnum.superseded };
+    }
 
     // The reply is now part of the conversation; re-extract from it.
     const history = await messagesService.findRecentByConversationId(
@@ -94,13 +101,10 @@ export function awaitConfirmation({
       actionName: state.topCatalogAction!.action.name,
     });
 
-    const replies = await messagesService.findByIds([
-      ...(answer.precedingMessageIds ?? []),
-      answer.messageId,
-    ]);
-    const decision = parseConfirmation(
-      replies.length ? combineBurst(replies).content : '',
-    );
+    const content = await replyContent(messagesService, answer);
+    const decision = matchesHumanRequest(content)
+      ? ConfirmationAnswerEnum.unclear
+      : parseConfirmation(content);
     if (decision === ConfirmationAnswerEnum.yes) {
       return { outcome: null };
     }
@@ -119,4 +123,15 @@ export function awaitConfirmation({
           : IntentOutcomeEnum.superseded,
     };
   };
+}
+
+async function replyContent(
+  messagesService: IntentGraphDeps['messagesService'],
+  answer: ResumeValue,
+): Promise<string> {
+  const replies = await messagesService.findByIds([
+    ...(answer.precedingMessageIds ?? []),
+    answer.messageId,
+  ]);
+  return replies.length ? combineBurst(replies).content : '';
 }

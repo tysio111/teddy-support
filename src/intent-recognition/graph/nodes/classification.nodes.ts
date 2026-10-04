@@ -1,5 +1,6 @@
 import { DetectedIntentStatusEnum } from '../../../detected-intents/detected-intent-status.enum';
 import { IntentOutcomeEnum } from '../../intent-recognition.types';
+import { matchesHumanRequest } from '../../prompts/human-request.prompt';
 import { IntentGraphDeps } from '../intent-graph.deps';
 import {
   findCatalogAction,
@@ -10,17 +11,26 @@ import { IntentGraphStateType, IntentGraphUpdate } from '../intent-graph.state';
 
 export function classifyIntent({ config, intentLlmService }: IntentGraphDeps) {
   return async (state: IntentGraphStateType): Promise<IntentGraphUpdate> => {
+    // Checked first: it needs no LLM call and must work without actions.
+    if (matchesHumanRequest(state.message!.content)) {
+      return { candidates: [], outcome: IntentOutcomeEnum.humanRequested };
+    }
     if (!state.catalog.length) {
       return { candidates: [], outcome: IntentOutcomeEnum.noActions };
     }
 
+    const classification = await intentLlmService.classify({
+      history: state.history,
+      message: state.message!,
+      catalog: state.catalog,
+      maxCandidates: config.maxCandidates,
+    });
+    if (classification.humanRequested) {
+      return { candidates: [], outcome: IntentOutcomeEnum.humanRequested };
+    }
+
     const candidates = normalizeCandidates(
-      await intentLlmService.classify({
-        history: state.history,
-        message: state.message!,
-        catalog: state.catalog,
-        maxCandidates: config.maxCandidates,
-      }),
+      classification.candidates,
       new Set(state.catalog.map(({ action }) => action.id)),
       config.maxCandidates,
     );

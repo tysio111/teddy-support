@@ -19,6 +19,11 @@ export type IntentCandidate = {
   reasoning: string;
 };
 
+export type Classification = {
+  candidates: IntentCandidate[];
+  humanRequested: boolean;
+};
+
 export type ExtractedParameters = Record<string, unknown>;
 
 export type ParameterIssue = {
@@ -98,6 +103,8 @@ export enum IntentOutcomeEnum {
   blocked = 'blocked',
   noActions = 'no_actions',
   noIntent = 'no_intent',
+  // The client explicitly asked for a human agent.
+  humanRequested = 'human_requested',
   // Knowledge base path (messages that match no action)
   answered = 'answered',
   noAnswer = 'no_answer',

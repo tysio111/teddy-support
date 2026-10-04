@@ -234,6 +234,7 @@ flowchart TD
   classifyIntent -- "intents found" --> persistIntents
   classifyIntent -- "no intent / no actions<br/>(knowledge enabled)" --> answerFromKnowledge
   classifyIntent -- "no intent<br/>(knowledge disabled)" --> END
+  classifyIntent -- human_requested --> escalateToHuman
   answerFromKnowledge -- "answered / small talk" --> END
   answerFromKnowledge -- "no_answer / reply_rejected" --> escalateToHuman
 
@@ -245,11 +246,12 @@ flowchart TD
 
   selectCandidate -- "missing params, rounds left" --> askClarification --> awaitClarification
   awaitClarification -.->|"⏸ client reply → Send"| extractParameters
+  awaitClarification -.->|"⏸ asks for a human"| END
   selectCandidate -- "missing params, rounds exhausted" --> escalateToHuman
   selectCandidate -- requiresConfirmation --> askConfirmation --> awaitConfirmation
   awaitConfirmation -.->|"⏸ yes"| checkCircuit
   awaitConfirmation -.->|"⏸ no"| generateResponse
-  awaitConfirmation -.->|"⏸ unrelated"| END
+  awaitConfirmation -.->|"⏸ unrelated / asks for a human"| END
   selectCandidate -- ready --> checkCircuit
   selectCandidate -- "no usable candidate" --> handleError
 
@@ -272,13 +274,13 @@ Any node whose retries run out routes to `handleError`. The live diagram, genera
 | `loadContext` | IO | Loads the message, the recent history (`INTENT_HISTORY_LIMIT`) and the catalog of active actions and their parameters, with credentials stripped |
 | `dedupe` | IO | Stops if this message already has detected intents |
 | `guardrail` | LLM | Prompt-injection screen: a regex pre-check, then an LLM verdict. Anything other than `allow` sets `blocked`. Can be turned off with `INTENT_GUARDRAIL_ENABLED=false` |
-| `classifyIntent` | LLM | Ranks up to `INTENT_MAX_CANDIDATES` matching actions with a confidence score. General questions get no candidates |
+| `classifyIntent` | LLM | Ranks up to `INTENT_MAX_CANDIDATES` matching actions with a confidence score. General questions get no candidates. An explicit request for a human sets `human_requested` (see [Escalation on request](#escalation-on-request)) |
 | `persistIntents` | IO | Saves one `DetectedIntent` per candidate and compares each with its threshold (the action's `confidenceThreshold`, or the default) |
 | `extractParameters` | LLM, fan-out | Extracts parameters for every candidate above its threshold, in parallel, so the next candidate is ready as a fallback |
 | `validateParameters` | pure | Validates the extracted values against each parameter's type, required flag and enum values |
 | `repairParameters` | LLM | Re-runs extraction with the validation errors fed back (`INTENT_MAX_REPAIR_ATTEMPTS`) |
 | `selectCandidate` | IO | Picks the best-ranked extraction that succeeded and works out which parameters are missing |
-| `askClarification` / `awaitClarification` | IO + ⏸ | Asks for the missing parameters and pauses with `interrupt()` (`INTENT_MAX_CLARIFICATION_ROUNDS`) |
+| `askClarification` / `awaitClarification` | IO + ⏸ | Asks for the missing parameters and pauses with `interrupt()` (`INTENT_MAX_CLARIFICATION_ROUNDS`). A reply asking for a human ends the run as `superseded` |
 | `askConfirmation` / `awaitConfirmation` | IO + ⏸ | For actions with `requiresConfirmation`: asks the client and pauses, then parses yes, no or unrelated |
 | `checkCircuit` | IO | Circuit breaker built from recent `ActionExecution` rows |
 | `executeAction` → `recordAttempt` → `backoff` | IO | Makes the HTTP call with an `Idempotency-Key`, writes one row per attempt and retries with jittered backoff |
@@ -300,6 +302,7 @@ Every run ends with one outcome ([intent-recognition.types.ts](src/intent-recogn
 | Waiting for the client | `needs_clarification`, `awaiting_confirmation` |
 | Ended by the client | `declined`, `superseded` |
 | Action | `executed`, `execution_failed`, `circuit_open` |
+| Hand-off | `human_requested` |
 | Other | `below_threshold`, `failed` |
 
 `budget_exceeded` is used only as a hand-off reason: the listener checks the [cost budget](#rate-limiting-and-cost-budget) before a run and does not start the graph.
@@ -429,6 +432,15 @@ Extracted actions are saved with status `draft`. An admin reviews them, adds cre
 ## Human hand-off
 
 When the graph escalates, `escalateToHuman` opens a `Handoff` (reason = the run's outcome) and sets the conversation to `escalated`. Client messages to an `escalated` or `assigned` conversation do not run the bot. A client message to a `resolved` conversation reopens it for the bot.
+
+### Escalation on request
+
+A client who asks for a human ("I want to talk to a person", "połącz mnie z konsultantem", "ich möchte mit einem Mitarbeiter sprechen") is handed off with reason `human_requested`, whether or not the knowledge base is enabled or any actions exist. Detection has two layers:
+
+1. Conservative EN/PL/DE patterns ([human-request.prompt.ts](src/intent-recognition/prompts/human-request.prompt.ts)), checked in `classifyIntent` before the LLM call. A match costs no LLM call.
+2. A `humanRequested` flag on the classification output catches paraphrases. Frustration alone does not set it, and an explicit request wins over any matched action.
+
+A pattern match in a reply to a pending clarification or confirmation question ends that run as `superseded`, so the message is processed again from scratch and escalates.
 
 Each hand-off stores two things for the agent:
 

@@ -42,6 +42,8 @@ export function buildFallbackReply(action: Action): string {
 }
 
 const ESCALATION_REPLIES: Partial<Record<IntentOutcomeEnum, string>> = {
+  [IntentOutcomeEnum.humanRequested]:
+    "Of course, I'm passing you to a member of our team, who will take over from here.",
   [IntentOutcomeEnum.belowThreshold]:
     "I want to make sure I get this right, so I'm passing your request to a member of our team.",
   [IntentOutcomeEnum.needsClarification]:

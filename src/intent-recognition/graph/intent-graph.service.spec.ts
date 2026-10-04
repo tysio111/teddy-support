@@ -6,7 +6,11 @@ import { Message } from '../../messages/domain/message';
 import { IntentRecognitionConfig } from '../config/intent-recognition-config.type';
 import { ActionExecutionResult } from '../execution/action-executor.service';
 import { CircuitStateEnum } from '../execution/circuit-breaker.service';
-import { IntentOutcomeEnum } from '../intent-recognition.types';
+import {
+  Classification,
+  IntentCandidate,
+  IntentOutcomeEnum,
+} from '../intent-recognition.types';
 import {
   KnowledgeAnswer,
   KnowledgeAnswerStatusEnum,
@@ -239,16 +243,25 @@ const input = {
   conversationId: conversation.id,
 };
 
+function classification(
+  candidates: IntentCandidate[] = [],
+  humanRequested = false,
+): Classification {
+  return { candidates, humanRequested };
+}
+
 function classifyAs(
   deps: ReturnType<typeof createService>['deps'],
   ...candidates: [Action, number][]
 ) {
   deps.intentLlmService.classify.mockResolvedValue(
-    candidates.map(([action, confidence]) => ({
-      actionId: action.id,
-      confidence,
-      reasoning: '',
-    })),
+    classification(
+      candidates.map(([action, confidence]) => ({
+        actionId: action.id,
+        confidence,
+        reasoning: '',
+      })),
+    ),
   );
 }
 
@@ -344,7 +357,7 @@ describe('IntentGraphService', () => {
         guardrailEnabled: true,
       });
       reply('message-2', 'my order');
-      deps.intentLlmService.classify.mockResolvedValue([]);
+      deps.intentLlmService.classify.mockResolvedValue(classification());
 
       await service.run({
         ...reply('message-3', 'ORD-1'),
@@ -389,9 +402,11 @@ describe('IntentGraphService', () => {
   describe('classification', () => {
     it('should end with no_intent when only hallucinated actions are returned', async () => {
       const { service, deps } = createService();
-      deps.intentLlmService.classify.mockResolvedValue([
-        { actionId: 'made-up', confidence: 0.99, reasoning: '' },
-      ]);
+      deps.intentLlmService.classify.mockResolvedValue(
+        classification([
+          { actionId: 'made-up', confidence: 0.99, reasoning: '' },
+        ]),
+      );
 
       const state = await service.run(input);
 
@@ -429,6 +444,71 @@ describe('IntentGraphService', () => {
     });
   });
 
+  describe('human request', () => {
+    const askForHuman = (reply: ReturnType<typeof createService>['reply']) =>
+      reply('message-2', 'I want to talk to a human');
+
+    it('should escalate an explicit request without calling the LLM', async () => {
+      const { service, deps, reply } = createService();
+
+      const state = await service.run(askForHuman(reply));
+
+      expect(state.outcome).toBe(IntentOutcomeEnum.humanRequested);
+      expect(state.escalated).toBe(true);
+      expect(deps.intentLlmService.classify).not.toHaveBeenCalled();
+      expect(
+        deps.detectedIntentsService.createForMessage,
+      ).not.toHaveBeenCalled();
+      expect(botMessages(deps)).toEqual([
+        "Of course, I'm passing you to a member of our team, who will take over from here.",
+      ]);
+      expect(deps.handoffsService.open).toHaveBeenCalledWith(
+        conversation,
+        expect.objectContaining({ reason: IntentOutcomeEnum.humanRequested }),
+      );
+    });
+
+    it('should escalate instead of consulting the knowledge base', async () => {
+      const { service, deps, reply } = createService(
+        {},
+        { knowledgeEnabled: true },
+      );
+
+      const state = await service.run(askForHuman(reply));
+
+      expect(state.outcome).toBe(IntentOutcomeEnum.humanRequested);
+      expect(state.escalated).toBe(true);
+      expect(deps.knowledgeService.answer).not.toHaveBeenCalled();
+    });
+
+    it('should escalate when there are no actions', async () => {
+      const { service, deps, reply } = createService();
+      deps.actionsService.findActive.mockResolvedValue([]);
+
+      const state = await service.run(askForHuman(reply));
+
+      expect(state.outcome).toBe(IntentOutcomeEnum.humanRequested);
+      expect(state.escalated).toBe(true);
+    });
+
+    it('should escalate when classification flags a paraphrased request', async () => {
+      const { service, deps } = createService();
+      deps.intentLlmService.classify.mockResolvedValue(
+        classification(
+          [{ actionId: orderAction.id, confidence: 0.9, reasoning: '' }],
+          true,
+        ),
+      );
+
+      const state = await service.run(input);
+
+      expect(state.outcome).toBe(IntentOutcomeEnum.humanRequested);
+      expect(state.escalated).toBe(true);
+      expect(deps.intentLlmService.extractParameters).not.toHaveBeenCalled();
+      expect(deps.actionExecutorService.execute).not.toHaveBeenCalled();
+    });
+  });
+
   describe('failures and retries', () => {
     it('should retry a node on transient LLM errors', async () => {
       const { service, deps } = createService();
@@ -437,9 +517,11 @@ describe('IntentGraphService', () => {
       });
       deps.intentLlmService.classify
         .mockRejectedValueOnce(overloaded)
-        .mockResolvedValueOnce([
-          { actionId: orderAction.id, confidence: 0.9, reasoning: '' },
-        ]);
+        .mockResolvedValueOnce(
+          classification([
+            { actionId: orderAction.id, confidence: 0.9, reasoning: '' },
+          ]),
+        );
       deps.intentLlmService.extractParameters.mockResolvedValue({
         orderId: '123',
       });
@@ -795,6 +877,22 @@ describe('IntentGraphService', () => {
       ]);
     });
 
+    it('should hand a request for a human during clarification back as a new request', async () => {
+      const { service, deps, reply } = createService();
+      classifyAs(deps, [orderAction, 0.9]);
+      deps.intentLlmService.extractParameters.mockResolvedValue({
+        orderId: null,
+      });
+      await service.run(input);
+
+      const state = await service.resume(
+        reply('message-2', 'Just let me speak to a person'),
+      );
+
+      expect(state.outcome).toBe(IntentOutcomeEnum.superseded);
+      expect(deps.intentLlmService.extractParameters).toHaveBeenCalledTimes(1);
+    });
+
     describe('confirmation', () => {
       async function pauseForConfirmation() {
         const context = createService();
@@ -868,6 +966,17 @@ describe('IntentGraphService', () => {
         expect(state.outcome).toBe(IntentOutcomeEnum.superseded);
         expect(deps.actionExecutorService.execute).not.toHaveBeenCalled();
       });
+
+      it('should hand a request for a human back as a new request', async () => {
+        const { service, deps, reply } = await pauseForConfirmation();
+
+        const state = await service.resume(
+          reply('message-2', 'No, connect me to an agent'),
+        );
+
+        expect(state.outcome).toBe(IntentOutcomeEnum.superseded);
+        expect(deps.actionExecutorService.execute).not.toHaveBeenCalled();
+      });
     });
   });
 
@@ -877,7 +986,7 @@ describe('IntentGraphService', () => {
         {},
         { knowledgeEnabled: true },
       );
-      deps.intentLlmService.classify.mockResolvedValue([]);
+      deps.intentLlmService.classify.mockResolvedValue(classification());
       reply('message-2', 'hi');
 
       await service.run({
@@ -896,7 +1005,7 @@ describe('IntentGraphService', () => {
         {},
         { knowledgeEnabled: true },
       );
-      deps.intentLlmService.classify.mockResolvedValue([]);
+      deps.intentLlmService.classify.mockResolvedValue(classification());
 
       const state = await service.run(
         reply('message-2', 'How long does delivery to Germany take?'),
@@ -924,7 +1033,7 @@ describe('IntentGraphService', () => {
         {},
         { knowledgeEnabled: true },
       );
-      deps.intentLlmService.classify.mockResolvedValue([]);
+      deps.intentLlmService.classify.mockResolvedValue(classification());
 
       await service.run(reply('message-2', 'And to Austria?'));
 
@@ -936,7 +1045,7 @@ describe('IntentGraphService', () => {
 
     it('should escalate when the knowledge base has no answer', async () => {
       const { service, deps } = createService({}, { knowledgeEnabled: true });
-      deps.intentLlmService.classify.mockResolvedValue([]);
+      deps.intentLlmService.classify.mockResolvedValue(classification());
       deps.knowledgeService.answer.mockResolvedValue(
         knowledgeAnswer({
           status: KnowledgeAnswerStatusEnum.notFound,
@@ -956,7 +1065,7 @@ describe('IntentGraphService', () => {
 
     it('should escalate when the answer fails the output review', async () => {
       const { service, deps } = createService({}, { knowledgeEnabled: true });
-      deps.intentLlmService.classify.mockResolvedValue([]);
+      deps.intentLlmService.classify.mockResolvedValue(classification());
       const review = {
         verdict: 'policy_violation',
         reason: 'Promises a refund the sources do not offer.',
@@ -985,7 +1094,7 @@ describe('IntentGraphService', () => {
 
     it('should reply to small talk without escalating', async () => {
       const { service, deps } = createService({}, { knowledgeEnabled: true });
-      deps.intentLlmService.classify.mockResolvedValue([]);
+      deps.intentLlmService.classify.mockResolvedValue(classification());
       deps.knowledgeService.answer.mockResolvedValue(
         knowledgeAnswer({
           status: KnowledgeAnswerStatusEnum.smallTalk,
@@ -1043,7 +1152,7 @@ describe('IntentGraphService', () => {
 
     it('should escalate when the knowledge base fails', async () => {
       const { service, deps } = createService({}, { knowledgeEnabled: true });
-      deps.intentLlmService.classify.mockResolvedValue([]);
+      deps.intentLlmService.classify.mockResolvedValue(classification());
       deps.knowledgeService.answer.mockRejectedValue(
         new Error('Qdrant collection not found'),
       );
@@ -1060,7 +1169,7 @@ describe('IntentGraphService', () => {
 
     it('should not consult the knowledge base when it is disabled', async () => {
       const { service, deps } = createService();
-      deps.intentLlmService.classify.mockResolvedValue([]);
+      deps.intentLlmService.classify.mockResolvedValue(classification());
 
       const state = await service.run(input);
 
