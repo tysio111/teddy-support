@@ -4,7 +4,10 @@ import { Repository, In } from 'typeorm';
 import { ConversationEntity } from '../entities/conversation.entity';
 import { NullableType } from '../../../../../utils/types/nullable.type';
 import { Conversation } from '../../../../domain/conversation';
-import { ConversationRepository } from '../../conversation.repository';
+import {
+  ConversationRepository,
+  LlmUsageDelta,
+} from '../../conversation.repository';
 import { ConversationMapper } from '../mappers/conversation.mapper';
 import { IPaginationOptions } from '../../../../../utils/types/pagination-options';
 
@@ -74,6 +77,25 @@ export class ConversationRelationalRepository implements ConversationRepository 
     );
 
     return ConversationMapper.toDomain(updatedEntity);
+  }
+
+  async addLlmUsage(
+    id: Conversation['id'],
+    usage: LlmUsageDelta,
+  ): Promise<void> {
+    await this.conversationRepository
+      .createQueryBuilder()
+      .update()
+      .set({
+        llmInputTokens: () => '"llmInputTokens" + :inputTokens',
+        llmOutputTokens: () => '"llmOutputTokens" + :outputTokens',
+        llmCostUsd: () => '"llmCostUsd" + :costUsd',
+        // Not a user-visible change of the conversation.
+        updatedAt: () => '"updatedAt"',
+      })
+      .where('id = :id', { id })
+      .setParameters(usage)
+      .execute();
   }
 
   async remove(id: Conversation['id']): Promise<void> {

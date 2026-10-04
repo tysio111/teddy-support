@@ -12,6 +12,7 @@ import docExtractionConfig from './doc-extraction/config/doc-extraction.config';
 import knowledgeConfig from './knowledge/config/knowledge.config';
 import handoffConfig from './handoffs/config/handoff.config';
 import privacyConfig from './privacy/config/privacy.config';
+import rateLimitConfig from './rate-limit/config/rate-limit.config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import path from 'path';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -58,8 +59,11 @@ import { HandoffsModule } from './handoffs/handoffs.module';
 
 import { PrivacyModule } from './privacy/privacy.module';
 
+import { RateLimitModule } from './rate-limit/rate-limit.module';
+
 @Module({
   imports: [
+    RateLimitModule,
     PrivacyModule,
     HandoffsModule,
     EventEmitterModule.forRoot(),
@@ -87,6 +91,7 @@ import { PrivacyModule } from './privacy/privacy.module';
         knowledgeConfig,
         handoffConfig,
         privacyConfig,
+        rateLimitConfig,
       ],
       envFilePath: ['.env'],
     }),

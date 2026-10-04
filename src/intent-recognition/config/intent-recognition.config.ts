@@ -130,6 +130,11 @@ class EnvironmentVariablesValidator {
   @Min(0)
   @IsOptional()
   INTENT_DEBOUNCE_MAX_WAIT_MS: number;
+
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  INTENT_CONVERSATION_BUDGET_USD: number;
 }
 
 function intEnv(name: string, fallback: number): number {
@@ -182,5 +187,9 @@ export default registerAs<IntentRecognitionConfig>('intentRecognition', () => {
 
     debounceMs: intEnv('INTENT_DEBOUNCE_MS', 1500),
     debounceMaxWaitMs: intEnv('INTENT_DEBOUNCE_MAX_WAIT_MS', 5000),
+
+    conversationBudgetUsd: process.env.INTENT_CONVERSATION_BUDGET_USD
+      ? parseFloat(process.env.INTENT_CONVERSATION_BUDGET_USD)
+      : null,
   };
 });

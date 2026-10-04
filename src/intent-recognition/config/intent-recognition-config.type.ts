@@ -34,4 +34,8 @@ export type IntentRecognitionConfig = {
   // Message debounce: a burst of client messages is processed as one run
   debounceMs: number;
   debounceMaxWaitMs: number;
+
+  // Estimated LLM spend after which a conversation is handed to a human
+  // instead of running the graph again; null for no budget.
+  conversationBudgetUsd: number | null;
 };

@@ -92,6 +92,9 @@ INTENT_PENDING_INPUT_TTL_MS=86400000
 # Wait this long after a client message for more before processing the burst (0 disables)
 INTENT_DEBOUNCE_MS=1500
 INTENT_DEBOUNCE_MAX_WAIT_MS=5000
+# Hand a conversation to a human once its estimated LLM spend reaches this many
+# USD (unset for no budget)
+INTENT_CONVERSATION_BUDGET_USD=1
 
 # Action extraction from client API docs (PDF / DOCX), uses ANTHROPIC_API_KEY
 DOC_EXTRACTION_MODEL=claude-sonnet-5-5
@@ -134,6 +137,14 @@ LANGSMITH_PROJECT=teddy-support
 # Human hand-off: background summary for the agent inbox, uses ANTHROPIC_API_KEY
 HANDOFF_SUMMARY_MODEL=claude-haiku-4-5
 HANDOFF_SUMMARY_HISTORY_LIMIT=30
+
+# Rate limiting (in memory, per instance). Each limit counts requests within
+# RATE_LIMIT_TTL_MS; 0 disables it. The IP limit applies per route, the
+# conversation and client limits to POST /messages.
+RATE_LIMIT_TTL_MS=60000
+RATE_LIMIT_IP_LIMIT=300
+RATE_LIMIT_CONVERSATION_LIMIT=20
+RATE_LIMIT_CLIENT_LIMIT=60
 
 # Privacy: mask card numbers, emails and phones in LLM prompts and logs
 PII_REDACTION_ENABLED=true

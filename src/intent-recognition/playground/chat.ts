@@ -213,7 +213,8 @@ function printSummary(result: IntentGraphRunResult, ms: number): void {
   lines.push(
     `path: ${result.metrics.map(({ node }) => node).join(' > ')}`,
     `${ms}ms, ${result.usage.llmCalls} LLM calls, ` +
-      `${result.usage.inputTokens}/${result.usage.outputTokens} tokens in/out`,
+      `${result.usage.inputTokens}/${result.usage.outputTokens} tokens in/out, ` +
+      `~$${result.usage.costUsd.toFixed(4)}`,
   );
 
   console.log(lines.map((line) => `      · ${line}`).join('\n') + '\n');

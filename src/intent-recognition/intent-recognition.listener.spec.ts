@@ -9,21 +9,28 @@ import { IntentGraphService } from './graph/intent-graph.service';
 import { IntentRecognitionListener } from './intent-recognition.listener';
 import { ConversationsService } from '../conversations/conversations.service';
 import { BOT_PAUSED_STATUSES } from '../conversations/conversation-status.enum';
+import { MessagesService } from '../messages/messages.service';
+import { HandoffsService } from '../handoffs/handoffs.service';
 
 const result = (outcome: string) => ({
   outcome,
   metrics: [],
   escalated: false,
   pendingInput: null,
-  usage: { llmCalls: 0, inputTokens: 0, outputTokens: 0 },
+  usage: { llmCalls: 0, inputTokens: 0, outputTokens: 0, costUsd: 0 },
 });
 
 describe('IntentRecognitionListener', () => {
-  async function setup(enabled = true, debounceMs = 0) {
+  async function setup(
+    enabled = true,
+    debounceMs = 0,
+    conversationBudgetUsd: number | null = null,
+  ) {
     const config: Record<string, unknown> = {
       'intentRecognition.enabled': enabled,
       'intentRecognition.debounceMs': debounceMs,
       'intentRecognition.debounceMaxWaitMs': 5000,
+      'intentRecognition.conversationBudgetUsd': conversationBudgetUsd,
     };
     const intentGraphService = {
       run: jest.fn().mockResolvedValue(result('no_intent')),
@@ -41,12 +48,20 @@ describe('IntentRecognitionListener', () => {
         BOT_PAUSED_STATUSES.includes(status),
       ),
     };
+    const messagesService = {
+      createBotMessage: jest.fn().mockResolvedValue(undefined),
+    };
+    const handoffsService = {
+      open: jest.fn().mockResolvedValue(undefined),
+    };
     const moduleRef = await Test.createTestingModule({
       imports: [EventEmitterModule.forRoot()],
       providers: [
         IntentRecognitionListener,
         { provide: IntentGraphService, useValue: intentGraphService },
         { provide: ConversationsService, useValue: conversationsService },
+        { provide: MessagesService, useValue: messagesService },
+        { provide: HandoffsService, useValue: handoffsService },
         {
           provide: ConfigService,
           useValue: {
@@ -63,6 +78,8 @@ describe('IntentRecognitionListener', () => {
       listener: moduleRef.get(IntentRecognitionListener),
       intentGraphService,
       conversationsService,
+      messagesService,
+      handoffsService,
     };
   }
 
@@ -119,6 +136,66 @@ describe('IntentRecognitionListener', () => {
       'open',
     );
     expect(intentGraphService.run).toHaveBeenCalledWith(input);
+  });
+
+  describe('cost budget', () => {
+    const spent = (llmCostUsd: number) => ({
+      id: 'conversation-1',
+      status: 'open',
+      llmCostUsd,
+    });
+
+    it('should hand off a conversation that used up its budget', async () => {
+      const {
+        eventEmitter,
+        intentGraphService,
+        conversationsService,
+        messagesService,
+        handoffsService,
+      } = await setup(true, 0, 1);
+      conversationsService.findById.mockResolvedValue(spent(1.2));
+
+      eventEmitter.emit(MESSAGE_CREATED_EVENT, event('client'));
+      await flush();
+      await flush();
+
+      expect(intentGraphService.run).not.toHaveBeenCalled();
+      expect(messagesService.createBotMessage).toHaveBeenCalledWith(
+        spent(1.2),
+        expect.any(String),
+      );
+      expect(handoffsService.open).toHaveBeenCalledWith(spent(1.2), {
+        reason: 'budget_exceeded',
+        context: null,
+      });
+    });
+
+    it('should run the graph while under budget', async () => {
+      const { eventEmitter, intentGraphService, conversationsService } =
+        await setup(true, 0, 1);
+      conversationsService.findById.mockResolvedValue(spent(0.4));
+
+      eventEmitter.emit(MESSAGE_CREATED_EVENT, event('client'));
+      await flush();
+
+      expect(intentGraphService.run).toHaveBeenCalledWith(input);
+    });
+
+    it('should not limit spend without a budget', async () => {
+      const {
+        eventEmitter,
+        intentGraphService,
+        conversationsService,
+        handoffsService,
+      } = await setup();
+      conversationsService.findById.mockResolvedValue(spent(100));
+
+      eventEmitter.emit(MESSAGE_CREATED_EVENT, event('client'));
+      await flush();
+
+      expect(intentGraphService.run).toHaveBeenCalledWith(input);
+      expect(handoffsService.open).not.toHaveBeenCalled();
+    });
   });
 
   it('should resume a run that is waiting for the client', async () => {

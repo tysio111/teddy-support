@@ -27,6 +27,13 @@ export type IntentGraphRunResult = IntentGraphStateType & {
   pendingInput: InterruptPayload | null;
 };
 
+// Persists the LLM spend of a run (including failed runs) on its
+// conversation, for the per-conversation cost budget.
+export type UsageRecorder = (
+  conversationId: string,
+  usage: TokenUsage,
+) => Promise<unknown>;
+
 export type PendingInput = {
   payload: InterruptPayload;
   expired: boolean;
@@ -44,6 +51,7 @@ export class IntentGraphService {
     private readonly graph: IntentGraph,
     private readonly checkpointer: BaseCheckpointSaver,
     private readonly config: IntentRecognitionConfig,
+    private readonly recordUsage: UsageRecorder | null = null,
   ) {}
 
   // Releases the Postgres pool, if any. Called on module shutdown.
@@ -103,6 +111,18 @@ export class IntentGraphService {
     meta: IntentGraphInput,
   ): Promise<IntentGraphRunResult> {
     const tracker = new TokenUsageTracker();
+    try {
+      return await this.stream(input, meta, tracker);
+    } finally {
+      await this.saveUsage(meta.conversationId, tracker.usage);
+    }
+  }
+
+  private async stream(
+    input: IntentGraphUpdate | Command<ResumeValue, IntentGraphUpdate, never>,
+    meta: IntentGraphInput,
+    tracker: TokenUsageTracker,
+  ): Promise<IntentGraphRunResult> {
     const stream = await this.graph.stream(input, {
       ...this.threadConfig(meta.conversationId),
       streamMode: ['updates', 'values'],
@@ -141,6 +161,25 @@ export class IntentGraphService {
     }
 
     return { ...state!, usage: tracker.usage, pendingInput };
+  }
+
+  // Never throws: losing a usage update must not fail the run.
+  private async saveUsage(
+    conversationId: string,
+    usage: TokenUsage,
+  ): Promise<void> {
+    if (!this.recordUsage || !usage.llmCalls) {
+      return;
+    }
+
+    try {
+      await this.recordUsage(conversationId, usage);
+    } catch (error) {
+      this.logger.error(
+        `Failed to record LLM usage for conversation ${conversationId}`,
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
   }
 
   private threadConfig(conversationId: string) {

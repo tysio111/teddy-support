@@ -18,6 +18,7 @@ import {
   ApiOkResponse,
   ApiParam,
   ApiTags,
+  ApiTooManyRequestsResponse,
 } from '@nestjs/swagger';
 import { Message } from './domain/message';
 import { AuthGuard } from '@nestjs/passport';
@@ -30,6 +31,7 @@ import { FindAllMessagesDto } from './dto/find-all-messages.dto';
 import { Roles } from '../roles/roles.decorator';
 import { RoleEnum } from '../roles/roles.enum';
 import { RolesGuard } from '../roles/roles.guard';
+import { ThrottleByConversation } from '../rate-limit/throttle-by-conversation.decorator';
 
 @ApiTags('Messages')
 @ApiBearerAuth()
@@ -43,8 +45,12 @@ export class MessagesController {
   constructor(private readonly messagesService: MessagesService) {}
 
   @Post()
+  @ThrottleByConversation()
   @ApiCreatedResponse({
     type: Message,
+  })
+  @ApiTooManyRequestsResponse({
+    description: 'Rate limit per IP, conversation or client exceeded',
   })
   create(@Body() createMessageDto: CreateMessageDto) {
     return this.messagesService.create(createMessageDto);

@@ -9,12 +9,16 @@ import {
 import { MessageSenderEnum } from '../messages/message-sender.enum';
 import { ConversationsService } from '../conversations/conversations.service';
 import { ConversationStatusEnum } from '../conversations/conversation-status.enum';
+import { Conversation } from '../conversations/domain/conversation';
+import { HandoffsService } from '../handoffs/handoffs.service';
+import { MessagesService } from '../messages/messages.service';
 import {
   IntentGraphInput,
   IntentGraphRunResult,
   IntentGraphService,
 } from './graph/intent-graph.service';
 import { IntentOutcomeEnum } from './intent-recognition.types';
+import { buildEscalationReply } from './prompts/bot-replies';
 
 type Burst = {
   messageIds: string[];
@@ -40,6 +44,8 @@ export class IntentRecognitionListener implements OnModuleDestroy {
     private readonly configService: ConfigService<AllConfigType>,
     private readonly intentGraphService: IntentGraphService,
     private readonly conversationsService: ConversationsService,
+    private readonly messagesService: MessagesService,
+    private readonly handoffsService: HandoffsService,
   ) {}
 
   // Fire-and-forget: runs after the HTTP response and must never throw.
@@ -127,8 +133,16 @@ export class IntentRecognitionListener implements OnModuleDestroy {
     };
 
     try {
-      if (!(await this.isBotActive(conversationId))) {
-        return;
+      const conversation =
+        await this.conversationsService.findById(conversationId);
+      // The graph handles (and logs) a missing conversation.
+      if (conversation) {
+        if (!(await this.isBotActive(conversation))) {
+          return;
+        }
+        if (await this.escalateIfOverBudget(conversation)) {
+          return;
+        }
       }
       this.log(input, await this.recognize(input));
     } catch (error) {
@@ -141,17 +155,10 @@ export class IntentRecognitionListener implements OnModuleDestroy {
 
   // Checked after the debounce window, so a conversation escalated or picked
   // up by an agent meanwhile is not answered by the bot.
-  private async isBotActive(conversationId: string): Promise<boolean> {
-    const conversation =
-      await this.conversationsService.findById(conversationId);
-    if (!conversation) {
-      // The graph handles (and logs) a missing conversation.
-      return true;
-    }
-
+  private async isBotActive(conversation: Conversation): Promise<boolean> {
     if (this.conversationsService.isBotPaused(conversation)) {
       this.logger.log(
-        `Conversation ${conversationId} is ${conversation.status}: bot paused`,
+        `Conversation ${conversation.id} is ${conversation.status}: bot paused`,
       );
       return false;
     }
@@ -159,10 +166,40 @@ export class IntentRecognitionListener implements OnModuleDestroy {
     // The client came back after the conversation was resolved.
     if (conversation.status === ConversationStatusEnum.resolved) {
       await this.conversationsService.setStatus(
-        conversationId,
+        conversation.id,
         ConversationStatusEnum.open,
       );
     }
+
+    return true;
+  }
+
+  // Checked before a run, so a single run can overshoot the budget; the next
+  // client message is then handed to a human instead of running the graph.
+  private async escalateIfOverBudget(
+    conversation: Conversation,
+  ): Promise<boolean> {
+    const budgetUsd = this.configService.get(
+      'intentRecognition.conversationBudgetUsd',
+      { infer: true },
+    );
+    const spentUsd = conversation.llmCostUsd ?? 0;
+    if (budgetUsd === null || budgetUsd === undefined || spentUsd < budgetUsd) {
+      return false;
+    }
+
+    this.logger.warn(
+      `Conversation ${conversation.id} spent $${spentUsd.toFixed(4)} ` +
+        `of its $${budgetUsd} LLM budget: handing off`,
+    );
+    await this.messagesService.createBotMessage(
+      conversation,
+      buildEscalationReply(IntentOutcomeEnum.budgetExceeded),
+    );
+    await this.handoffsService.open(conversation, {
+      reason: IntentOutcomeEnum.budgetExceeded,
+      context: null,
+    });
 
     return true;
   }
@@ -201,7 +238,8 @@ export class IntentRecognitionListener implements OnModuleDestroy {
         (result.escalated ? ' (escalated)' : '') +
         (result.topIntent ? ` (detectedIntent ${result.topIntent.id})` : '') +
         ` [${totalMs}ms, ${result.usage.llmCalls} LLM calls, ` +
-        `${result.usage.inputTokens}/${result.usage.outputTokens} tokens in/out]`,
+        `${result.usage.inputTokens}/${result.usage.outputTokens} tokens in/out, ` +
+        `~$${result.usage.costUsd.toFixed(4)}]`,
     );
   }
 

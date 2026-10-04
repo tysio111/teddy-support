@@ -8,6 +8,12 @@ import { ConversationEntity } from '../entities/conversation.entity';
 export class ConversationMapper {
   static toDomain(raw: ConversationEntity): Conversation {
     const domainEntity = new Conversation();
+    domainEntity.llmCostUsd = raw.llmCostUsd;
+
+    domainEntity.llmOutputTokens = raw.llmOutputTokens;
+
+    domainEntity.llmInputTokens = raw.llmInputTokens;
+
     if (raw.assignee) {
       domainEntity.assignee = UserMapper.toDomain(raw.assignee);
     } else if (raw.assignee === null) {
@@ -35,6 +41,12 @@ export class ConversationMapper {
 
   static toPersistence(domainEntity: Conversation): ConversationEntity {
     const persistenceEntity = new ConversationEntity();
+    persistenceEntity.llmCostUsd = domainEntity.llmCostUsd;
+
+    persistenceEntity.llmOutputTokens = domainEntity.llmOutputTokens;
+
+    persistenceEntity.llmInputTokens = domainEntity.llmInputTokens;
+
     if (domainEntity.assignee) {
       persistenceEntity.assignee = UserMapper.toPersistence(
         domainEntity.assignee,

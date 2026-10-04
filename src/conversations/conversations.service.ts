@@ -12,7 +12,10 @@ import {
 } from '@nestjs/common';
 import { CreateConversationDto } from './dto/create-conversation.dto';
 import { UpdateConversationDto } from './dto/update-conversation.dto';
-import { ConversationRepository } from './infrastructure/persistence/conversation.repository';
+import {
+  ConversationRepository,
+  LlmUsageDelta,
+} from './infrastructure/persistence/conversation.repository';
 import { IPaginationOptions } from '../utils/types/pagination-options';
 import { Conversation } from './domain/conversation';
 import {
@@ -179,6 +182,11 @@ export class ConversationsService {
 
   isBotPaused(conversation: Conversation): boolean {
     return BOT_PAUSED_STATUSES.includes(conversation.status);
+  }
+
+  // System context (intent recognition): LLM spend of a graph run.
+  addLlmUsage(id: Conversation['id'], usage: LlmUsageDelta) {
+    return this.conversationRepository.addLlmUsage(id, usage);
   }
 
   remove(id: Conversation['id']) {

@@ -1,6 +1,6 @@
 # Roadmap
 
-Candidate features for Teddy Support, based on what [README.md](README.md) describes and what `src/` contains today. Apart from the hand-off inbox and summary, PII redaction with retention and GDPR erasure, and the output guardrail, none of them are implemented yet. The code currently has no WebSocket or SSE, no webhooks, no feedback or CSAT and no rate limiting. The only scheduled job is the retention purge, which runs on an in-process timer. Events and the per-conversation lock are in-process only, the deterministic bot replies are English only, and CI does not run the unit tests.
+Candidate features for Teddy Support, based on what [README.md](README.md) describes and what `src/` contains today. Apart from the hand-off inbox and summary, PII redaction with retention and GDPR erasure, the output guardrail, and rate limiting with a cost budget, none of them are implemented yet. The code currently has no WebSocket or SSE, no webhooks and no feedback or CSAT. The only scheduled job is the retention purge, which runs on an in-process timer. Events and the per-conversation lock are in-process only, the deterministic bot replies are English only, and CI does not run the unit tests.
 
 ## Suggested order
 
@@ -8,7 +8,7 @@ Candidate features for Teddy Support, based on what [README.md](README.md) descr
 2. ~~Human hand-off inbox and summary~~ (done, see [README](README.md#human-hand-off)).
 3. Feedback and analytics, so there is a way to measure everything else.
 4. Streaming and channel adapters.
-5. ~~PII redaction~~ (done, see [README](README.md#privacy)) and rate limiting.
+5. ~~PII redaction~~ (done, see [README](README.md#privacy)) and ~~rate limiting~~ (done, see [README](README.md#rate-limiting-and-cost-budget)).
 
 ## 1. Human hand-off (the biggest gap)
 
@@ -26,7 +26,7 @@ Candidate features for Teddy Support, based on what [README.md](README.md) descr
 ## 3. Quality loop and analytics
 
 - **Feedback/CSAT**: thumbs up or down per bot message and a rating at the end of a conversation, stored and linked to the `DetectedIntent` and the knowledge sources used.
-- **Analytics endpoints and dashboard**: outcome distribution (outcomes are already typed), containment rate (conversations resolved without a human), escalation reasons, latency and token cost per node (already logged; they need to be persisted), and action success rate per endpoint.
+- **Analytics endpoints and dashboard**: outcome distribution (outcomes are already typed), containment rate (conversations resolved without a human), escalation reasons, latency and token cost per node (logged; only the per-conversation total is persisted), and action success rate per endpoint.
 - **Knowledge gap mining**: cluster the `no_answer` and `below_threshold` messages to suggest missing help-centre articles or missing actions.
 - **Production → eval goldens**: promote real conversations with negative feedback to the promptfoo goldens in [evals/rag](evals/rag/) and the intent fixtures in [src/intent-recognition/evals/fixtures.ts](src/intent-recognition/evals/fixtures.ts).
 - **Online eval sampling**: an LLM judge scores a sample of live answers for faithfulness, reusing the promptfoo metric prompts.
@@ -39,7 +39,7 @@ Candidate features for Teddy Support, based on what [README.md](README.md) descr
 - ~~**PII redaction**~~ before LLM calls and logging (card numbers, emails, phones), plus data retention and GDPR deletion per client: done (see [README](README.md#privacy)). Possible follow-ups: a GDPR data export (`GET /clients/:id/personal-data`), encrypting message content at rest, and NER-based detection of names and addresses.
 - ~~**Output guardrail**~~: check the answer against the cited chunks and policy before sending it: done (see [README](README.md#output-guardrail)). Possible follow-up: show the rejected draft and the review reason to the agent in the hand-off context.
 - **Indirect prompt injection screening**: action responses and indexed help-centre documents also reach the LLM and are untrusted, but the guardrail only screens client messages.
-- **Rate limiting** per client or conversation (`@nestjs/throttler`) and a cost budget per conversation.
+- ~~**Rate limiting**~~ per client or conversation (`@nestjs/throttler`) and a ~~cost budget~~ per conversation: done (see [README](README.md#rate-limiting-and-cost-budget)). Possible follow-ups: Redis throttler storage for multiple replicas, counting hand-off summary calls in the budget, and a token- or cost-based limit per client across conversations.
 - **Credentials**: encrypt `Action.authCredential` at rest, and add OAuth2 client credentials as an `authType`.
 
 ## 5. Actions

@@ -17,6 +17,27 @@ import { EntityRelationalHelper } from '../../../../../utils/relational-entity-h
   name: 'conversation',
 })
 export class ConversationEntity extends EntityRelationalHelper {
+  @Column({
+    nullable: false,
+    type: 'double precision',
+    default: 0,
+  })
+  llmCostUsd?: number;
+
+  @Column({
+    nullable: false,
+    type: Number,
+    default: 0,
+  })
+  llmOutputTokens?: number;
+
+  @Column({
+    nullable: false,
+    type: Number,
+    default: 0,
+  })
+  llmInputTokens?: number;
+
   @ManyToOne(() => UserEntity, { eager: true, nullable: true })
   assignee?: UserEntity | null;
 

@@ -8,6 +8,7 @@ import { DetectedIntentsService } from '../detected-intents/detected-intents.ser
 import { HandoffsService } from '../handoffs/handoffs.service';
 import { KnowledgeService } from '../knowledge/knowledge.service';
 import { MessagesService } from '../messages/messages.service';
+import { ConversationsService } from '../conversations/conversations.service';
 import { PiiRedactor } from '../privacy/pii/pii-redactor';
 import { ActionExecutorService } from './execution/action-executor.service';
 import { CircuitBreakerService } from './execution/circuit-breaker.service';
@@ -30,6 +31,7 @@ export const intentGraphServiceProvider: Provider<IntentGraphService> = {
     ActionExecutionsService,
     KnowledgeService,
     HandoffsService,
+    ConversationsService,
   ],
   useFactory: async (
     configService: ConfigService<AllConfigType>,
@@ -40,6 +42,7 @@ export const intentGraphServiceProvider: Provider<IntentGraphService> = {
     actionExecutionsService: ActionExecutionsService,
     knowledgeService: KnowledgeService,
     handoffsService: HandoffsService,
+    conversationsService: ConversationsService,
   ) => {
     const config = configService.getOrThrow('intentRecognition', {
       infer: true,
@@ -74,6 +77,16 @@ export const intentGraphServiceProvider: Provider<IntentGraphService> = {
       handoffsService,
     });
 
-    return new IntentGraphService(graph, checkpointer, config);
+    return new IntentGraphService(
+      graph,
+      checkpointer,
+      config,
+      (conversationId, { inputTokens, outputTokens, costUsd }) =>
+        conversationsService.addLlmUsage(conversationId, {
+          inputTokens,
+          outputTokens,
+          costUsd,
+        }),
+    );
   },
 };

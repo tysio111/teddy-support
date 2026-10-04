@@ -8,6 +8,7 @@ import { DocExtractionConfig } from '../doc-extraction/config/doc-extraction-con
 import { KnowledgeConfig } from '../knowledge/config/knowledge-config.type';
 import { HandoffConfig } from '../handoffs/config/handoff-config.type';
 import { PrivacyConfig } from '../privacy/config/privacy-config.type';
+import { RateLimitConfig } from '../rate-limit/config/rate-limit-config.type';
 
 export type AllConfigType = {
   app: AppConfig;
@@ -20,4 +21,5 @@ export type AllConfigType = {
   knowledge: KnowledgeConfig;
   handoff: HandoffConfig;
   privacy: PrivacyConfig;
+  rateLimit: RateLimitConfig;
 };

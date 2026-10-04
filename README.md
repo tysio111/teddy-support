@@ -26,6 +26,7 @@ Admins can also upload API documentation and let Claude draft the action catalog
   - [Output guardrail](#output-guardrail)
 - [Action extraction from API docs](#action-extraction-from-api-docs)
 - [Privacy](#privacy)
+- [Rate limiting and cost budget](#rate-limiting-and-cost-budget)
 - [REST API](#rest-api)
 - [Getting started](#getting-started)
 - [Configuration](#configuration)
@@ -301,6 +302,8 @@ Every run ends with one outcome ([intent-recognition.types.ts](src/intent-recogn
 | Action | `executed`, `execution_failed`, `circuit_open` |
 | Other | `below_threshold`, `failed` |
 
+`budget_exceeded` is used only as a hand-off reason: the listener checks the [cost budget](#rate-limiting-and-cost-budget) before a run and does not start the graph.
+
 ### Human in the loop
 
 The run pauses with `interrupt()` and its state is checkpointed in Postgres (schema `langgraph`). The client's next message resumes it, even after the process restarts. The example below uses the e-commerce seed data.
@@ -458,6 +461,18 @@ Code in [src/privacy](src/privacy/).
 
 **Retention.** If `DATA_RETENTION_DAYS` is set, the app deletes conversations with no activity for that many days in the same way: on boot, then every `DATA_RETENTION_INTERVAL_MINUTES`. Conversations that are `escalated` or `assigned` are kept until an agent closes them. Client profiles that have no conversations left and have not been updated within the window are deleted too.
 
+## Rate limiting and cost budget
+
+**Rate limiting.** [AppThrottlerGuard](src/rate-limit/app-throttler.guard.ts) (`@nestjs/throttler`) is a global guard with three limits that share one window (`RATE_LIMIT_TTL_MS`):
+
+- *Per IP*: every route, counted separately per route (`RATE_LIMIT_IP_LIMIT`).
+- *Per conversation*: messages posted to one conversation (`RATE_LIMIT_CONVERSATION_LIMIT`).
+- *Per client*: messages across all conversations of the conversation's client (`RATE_LIMIT_CLIENT_LIMIT`). Conversations without a client are limited per conversation only.
+
+The per-conversation and per-client limits apply only to routes marked with `@ThrottleByConversation()`, which today is `POST /messages`. A request over a limit gets `429` with a `Retry-After` header. The guard runs before authentication, so it cannot key on the user. Counters are kept in memory, per instance; with several replicas, plug in a shared `ThrottlerStorage` such as Redis. Behind a proxy, the per-IP limit needs Express `trust proxy` to see the real client IP.
+
+**Cost budget.** Every graph run sums its LLM token usage, including fallback-model and knowledge base calls, and prices each call by the model that served it ([anthropic-models.ts](src/utils/anthropic-models.ts): first-party list prices, cache reads at 0.1× and writes at 1.25×; unknown models are priced at the top tier). The usage is added atomically to `conversation.llmInputTokens`, `llmOutputTokens` and `llmCostUsd`, failed runs included. When `INTENT_CONVERSATION_BUDGET_USD` is set, the listener checks the spend before each run. Once the spend reaches the budget, the next client message gets a short bot reply and the conversation is [handed off](#human-hand-off) with reason `budget_exceeded` instead of running the graph. The check happens before a run, so a single run can go over the budget. Hand-off summaries and action extraction are not counted.
+
 ## REST API
 
 All routes are under `/api/v1` and documented with Swagger at `/docs`. Authentication uses email + password with JWT access and refresh tokens.
@@ -465,7 +480,7 @@ All routes are under `/api/v1` and documented with Swagger at `/docs`. Authentic
 | Route | Roles | Notes |
 | --- | --- | --- |
 | `/auth/*` | public / JWT | Register, confirm email, login, refresh, forgot and reset password, `me` |
-| `/clients`, `/conversations`, `/messages` | admin, user | CRUD. Creating a message triggers intent recognition |
+| `/clients`, `/conversations`, `/messages` | admin, user | CRUD. Creating a message triggers intent recognition and is [rate limited](#rate-limiting-and-cost-budget) per conversation and client |
 | `DELETE /clients/:id/personal-data` | admin | GDPR erasure of a client and everything recorded about them |
 | `/handoffs` | admin, user | Agent inbox. `GET /handoffs?status=pending&assignee=me`, `POST /handoffs` (manual escalation), `POST /handoffs/:id/assign\|messages\|release\|resolve\|summary` |
 | `/actions`, `/action-parameters` | admin | Action catalog. `GET /actions?status=draft&resourceId=…` |
@@ -538,6 +553,7 @@ All settings come from `.env` (see [env-example-relational](env-example-relation
 | `INTENT_CHECKPOINTER` | `postgres` | `postgres` or `memory` |
 | `INTENT_PENDING_INPUT_TTL_MS` | `86400000` | How long a paused run can be resumed |
 | `INTENT_DEBOUNCE_MS`, `INTENT_DEBOUNCE_MAX_WAIT_MS` | `1500`, `5000` | Message debounce window and its cap (`0` disables it) |
+| `INTENT_CONVERSATION_BUDGET_USD` | — | Estimated LLM spend after which a conversation is [handed off](#rate-limiting-and-cost-budget) (unset means no budget) |
 
 **Knowledge base** ([knowledge.config.ts](src/knowledge/config/knowledge.config.ts))
 
@@ -557,6 +573,8 @@ All settings come from `.env` (see [env-example-relational](env-example-relation
 | `KNOWLEDGE_OUTPUT_GUARDRAIL_ENABLED` | `true` | [Output review](#output-guardrail) of answers against their cited chunks |
 
 **Privacy** ([privacy.config.ts](src/privacy/config/privacy.config.ts)): `PII_REDACTION_ENABLED` (`true`), `DATA_RETENTION_DAYS` (unset, so data is kept forever), `DATA_RETENTION_INTERVAL_MINUTES` (`60`).
+
+**Rate limiting** ([rate-limit.config.ts](src/rate-limit/config/rate-limit.config.ts)): `RATE_LIMIT_TTL_MS` (`60000`), `RATE_LIMIT_IP_LIMIT` (`300`), `RATE_LIMIT_CONVERSATION_LIMIT` (`20`), `RATE_LIMIT_CLIENT_LIMIT` (`60`). `0` disables a limit.
 
 **Doc extraction**: `DOC_EXTRACTION_MODEL` (`claude-sonnet-5-5`), `DOC_EXTRACTION_MAX_TOKENS` (`16000`).
 

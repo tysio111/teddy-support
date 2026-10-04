@@ -111,6 +111,8 @@ export enum IntentOutcomeEnum {
   // message must be processed as a fresh request.
   superseded = 'superseded',
   circuitOpen = 'circuit_open',
+  // The conversation used up its LLM cost budget; handed to a human.
+  budgetExceeded = 'budget_exceeded',
   executed = 'executed',
   executionFailed = 'execution_failed',
   failed = 'failed',
