@@ -112,6 +112,10 @@ class EnvironmentVariablesValidator {
   @Min(0)
   @IsOptional()
   KNOWLEDGE_HISTORY_LIMIT: number;
+
+  @IsBoolean()
+  @IsOptional()
+  KNOWLEDGE_OUTPUT_GUARDRAIL_ENABLED: boolean;
 }
 
 function intEnv(name: string, fallback: number): number {
@@ -153,5 +157,8 @@ export default registerAs<KnowledgeConfig>('knowledge', () => {
     hydeEnabled: process.env.KNOWLEDGE_HYDE_ENABLED === 'true',
     rerankEnabled: process.env.KNOWLEDGE_RERANK_ENABLED !== 'false',
     historyLimit: intEnv('KNOWLEDGE_HISTORY_LIMIT', 6),
+
+    outputGuardrailEnabled:
+      process.env.KNOWLEDGE_OUTPUT_GUARDRAIL_ENABLED !== 'false',
   };
 });

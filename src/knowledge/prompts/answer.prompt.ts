@@ -21,21 +21,8 @@ export function buildAnswerPrompt({
   question: string;
   chunks: RetrievedChunk[];
 }): string {
-  const sources = chunks.length
-    ? chunks
-        .map((chunk, index) => {
-          const section = [chunk.resourceTitle, ...chunk.headingPath].join(
-            ' > ',
-          );
-          return `<source id="${index + 1}" section="${section}">
-${chunk.text}
-</source>`;
-        })
-        .join('\n')
-    : '(no sources found)';
-
   return `<sources>
-${sources}
+${chunks.length ? formatSources(chunks) : '(no sources found)'}
 </sources>
 
 <transcript>
@@ -45,4 +32,17 @@ ${formatTurns(history)}
 <latest_customer_message>
 ${question}
 </latest_customer_message>`;
+}
+
+// Also used by the output review, which sees the cited sources as the answer
+// model saw them.
+export function formatSources(chunks: RetrievedChunk[]): string {
+  return chunks
+    .map((chunk, index) => {
+      const section = [chunk.resourceTitle, ...chunk.headingPath].join(' > ');
+      return `<source id="${index + 1}" section="${section}">
+${chunk.text}
+</source>`;
+    })
+    .join('\n');
 }

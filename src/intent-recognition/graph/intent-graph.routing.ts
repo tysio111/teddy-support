@@ -33,7 +33,10 @@ export function routeAfterClassification(
 }
 
 export function routeAfterKnowledge(state: IntentGraphStateType) {
-  return state.outcome === IntentOutcomeEnum.noAnswer ? 'escalateToHuman' : END;
+  return state.outcome === IntentOutcomeEnum.noAnswer ||
+    state.outcome === IntentOutcomeEnum.replyRejected
+    ? 'escalateToHuman'
+    : END;
 }
 
 // Fan-out: extract parameters for every candidate above its threshold in

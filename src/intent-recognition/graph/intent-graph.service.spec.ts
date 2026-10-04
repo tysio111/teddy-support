@@ -102,6 +102,7 @@ function knowledgeAnswer(
       candidates: 12,
       chunks: [],
     },
+    review: null,
     ...overrides,
   };
 }
@@ -196,6 +197,9 @@ function createService(
       extractParameters: jest.fn(),
       repairParameters: jest.fn(),
       generateReply: jest.fn().mockResolvedValue('Your order has shipped.'),
+      reviewReply: jest
+        .fn()
+        .mockResolvedValue({ verdict: 'pass', reason: 'Grounded.' }),
     },
     actionExecutorService: {
       execute: jest.fn().mockResolvedValue(executionResult()),
@@ -656,6 +660,35 @@ describe('IntentGraphService', () => {
       });
     });
 
+    it('should replace a reply that fails the output review', async () => {
+      const { service, deps } = createService({ outputGuardrailEnabled: true });
+      classifyAs(deps, [orderAction, 0.9]);
+      deps.intentLlmService.extractParameters.mockResolvedValue({
+        orderId: '123',
+      });
+      deps.intentLlmService.generateReply.mockResolvedValue(
+        'Your order has shipped and you get a 20% discount.',
+      );
+      deps.intentLlmService.reviewReply.mockResolvedValue({
+        verdict: 'ungrounded',
+        reason: 'The discount is not in the action result.',
+      });
+
+      const state = await service.run(input);
+
+      expect(state.outcome).toBe(IntentOutcomeEnum.executed);
+      expect(deps.intentLlmService.reviewReply).toHaveBeenCalledWith({
+        action: expect.objectContaining({ id: orderAction.id }),
+        parameters: { orderId: '123' },
+        responsePayload: '{"status":"shipped"}',
+        message: message.content,
+        reply: 'Your order has shipped and you get a 20% discount.',
+      });
+      expect(botMessages(deps)).toEqual([
+        "Done! I've completed your request: Check order status.",
+      ]);
+    });
+
     it('should send a canned reply when reply generation fails', async () => {
       const { service, deps } = createService();
       classifyAs(deps, [orderAction, 0.9]);
@@ -699,6 +732,7 @@ describe('IntentGraphService', () => {
         responsePayload: '{"status":"shipped"}',
       });
       expect(botMessages(deps)).toEqual(['Your order has shipped.']);
+      expect(deps.intentLlmService.reviewReply).not.toHaveBeenCalled();
       expect(state.metrics.map(({ node }) => node)).toEqual(
         expect.arrayContaining(['classifyIntent', 'executeAction']),
       );
@@ -918,6 +952,35 @@ describe('IntentGraphService', () => {
       expect(botMessages(deps)).toEqual([
         "I couldn't find the answer to that, so I'm passing your question to a member of our team.",
       ]);
+    });
+
+    it('should escalate when the answer fails the output review', async () => {
+      const { service, deps } = createService({}, { knowledgeEnabled: true });
+      deps.intentLlmService.classify.mockResolvedValue([]);
+      const review = {
+        verdict: 'policy_violation',
+        reason: 'Promises a refund the sources do not offer.',
+      };
+      deps.knowledgeService.answer.mockResolvedValue(
+        knowledgeAnswer({
+          status: KnowledgeAnswerStatusEnum.rejected,
+          reply: null,
+          review: review as KnowledgeAnswer['review'],
+        }),
+      );
+
+      const state = await service.run(input);
+
+      expect(state.outcome).toBe(IntentOutcomeEnum.replyRejected);
+      expect(state.escalated).toBe(true);
+      expect(state.knowledge?.review).toEqual(review);
+      expect(botMessages(deps)).toEqual([
+        "I want to make sure you get the right answer, so I'm passing your question to a member of our team.",
+      ]);
+      expect(deps.handoffsService.open).toHaveBeenCalledWith(
+        conversation,
+        expect.objectContaining({ reason: IntentOutcomeEnum.replyRejected }),
+      );
     });
 
     it('should reply to small talk without escalating', async () => {

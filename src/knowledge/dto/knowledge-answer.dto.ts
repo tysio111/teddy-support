@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { OutputReviewVerdictEnum } from '../../utils/output-review';
 import { KnowledgeAnswerStatusEnum } from '../knowledge.types';
 
 export class CitationDto {
@@ -36,6 +37,14 @@ export class RetrievedChunkDto extends CitationDto {
   relevance: number | null;
 }
 
+export class OutputReviewDto {
+  @ApiProperty({ enum: OutputReviewVerdictEnum })
+  verdict: OutputReviewVerdictEnum;
+
+  @ApiProperty()
+  reason: string;
+}
+
 // Flat shape for evals: `contexts` is what DeepEval calls retrieval_context.
 export class KnowledgeAnswerDto {
   @ApiProperty({ enum: KnowledgeAnswerStatusEnum })
@@ -46,6 +55,13 @@ export class KnowledgeAnswerDto {
 
   @ApiProperty({ type: () => [CitationDto] })
   citations: CitationDto[];
+
+  @ApiProperty({
+    type: () => OutputReviewDto,
+    nullable: true,
+    description: 'Output guardrail verdict, null when it did not run',
+  })
+  review: OutputReviewDto | null;
 
   @ApiProperty()
   rewrittenQuery: string;

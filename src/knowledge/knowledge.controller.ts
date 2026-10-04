@@ -76,6 +76,7 @@ export class KnowledgeController {
       status: result.status,
       reply: result.reply,
       citations: result.citations,
+      review: result.review,
       rewrittenQuery: retrieval.rewrittenQuery,
       hypotheticalAnswer: retrieval.hypotheticalAnswer,
       candidates: retrieval.candidates,

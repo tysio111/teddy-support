@@ -13,6 +13,12 @@ import { Message } from '../../messages/domain/message';
 import { PiiRedactor } from '../../privacy/pii/pii-redactor';
 import { structuredOutputMethod } from '../../utils/anthropic-models';
 import {
+  buildOutputReviewPrompt,
+  OUTPUT_REVIEW_SYSTEM_PROMPT,
+  OutputReview,
+  outputReviewSchema,
+} from '../../utils/output-review';
+import {
   CatalogAction,
   ExtractedParameters,
   GuardrailVerdictEnum,
@@ -146,6 +152,27 @@ export class IntentLlmService {
     ]);
 
     return result.reply;
+  }
+
+  // Output guardrail: checks a generated reply against the action result it
+  // was written from and the policy.
+  async reviewReply(input: {
+    action: Action;
+    parameters: ExtractedParameters;
+    responsePayload: string | null;
+    message: string;
+    reply: string;
+  }): Promise<OutputReview> {
+    return this.structured(outputReviewSchema, 'review_reply').invoke([
+      new SystemMessage(OUTPUT_REVIEW_SYSTEM_PROMPT),
+      new HumanMessage(
+        buildOutputReviewPrompt({
+          reference: buildResponsePrompt(input),
+          message: input.message,
+          reply: input.reply,
+        }),
+      ),
+    ]);
   }
 
   // Structured output must be bound per model before chaining fallbacks:

@@ -23,6 +23,7 @@ Admins can also upload API documentation and let Claude draft the action catalog
 - [Knowledge base (RAG)](#knowledge-base-rag)
   - [Indexing](#indexing)
   - [Answering](#answering)
+  - [Output guardrail](#output-guardrail)
 - [Action extraction from API docs](#action-extraction-from-api-docs)
 - [Privacy](#privacy)
 - [REST API](#rest-api)
@@ -233,7 +234,7 @@ flowchart TD
   classifyIntent -- "no intent / no actions<br/>(knowledge enabled)" --> answerFromKnowledge
   classifyIntent -- "no intent<br/>(knowledge disabled)" --> END
   answerFromKnowledge -- "answered / small talk" --> END
-  answerFromKnowledge -- no_answer --> escalateToHuman
+  answerFromKnowledge -- "no_answer / reply_rejected" --> escalateToHuman
 
   persistIntents -- "Send × N (parallel)" --> extractParameters
   persistIntents -- below_threshold --> escalateToHuman
@@ -281,8 +282,8 @@ Any node whose retries run out routes to `handleError`. The live diagram, genera
 | `checkCircuit` | IO | Circuit breaker built from recent `ActionExecution` rows |
 | `executeAction` → `recordAttempt` → `backoff` | IO | Makes the HTTP call with an `Idempotency-Key`, writes one row per attempt and retries with jittered backoff |
 | `finalizeExecution` | IO | Sets `executed` or `execution_failed` |
-| `generateResponse` | LLM | Writes the reply to the client from the action result. If the LLM fails, a canned reply is sent instead |
-| `answerFromKnowledge` | LLM | Runs the [RAG pipeline](#answering) and replies with citations, or sets `no_answer` |
+| `generateResponse` | LLM | Writes the reply to the client from the action result, then runs the [output guardrail](#output-guardrail) on it. If the LLM fails or the reply is rejected, a canned reply is sent instead |
+| `answerFromKnowledge` | LLM | Runs the [RAG pipeline](#answering) and replies with citations, or sets `no_answer` (nothing found) or `reply_rejected` (the answer failed the [output guardrail](#output-guardrail)) |
 | `handleError` / `escalateToHuman` | IO | Marks the intent `failed` or `escalated`, sends a hand-off message and opens a [hand-off](#human-hand-off) |
 
 Nodes live in [src/intent-recognition/graph/nodes](src/intent-recognition/graph/nodes/) and prompts in [src/intent-recognition/prompts](src/intent-recognition/prompts/).
@@ -294,7 +295,7 @@ Every run ends with one outcome ([intent-recognition.types.ts](src/intent-recogn
 | Group | Outcomes |
 | --- | --- |
 | Stopped early | `skipped`, `duplicate`, `blocked`, `no_actions`, `no_intent` |
-| Knowledge | `answered`, `no_answer` |
+| Knowledge | `answered`, `no_answer`, `reply_rejected` |
 | Waiting for the client | `needs_clarification`, `awaiting_confirmation` |
 | Ended by the client | `declined`, `superseded` |
 | Action | `executed`, `execution_failed`, `circuit_open` |
@@ -389,12 +390,22 @@ flowchart LR
   RR -- off --> TK
   RK --> TK["Top-K chunks (6)"]
   TK --> AN["Answer model (Opus)<br/>structured output + sources"]
-  AN --> O1[answered + citations]
-  AN --> O2[small_talk]
   AN --> O3[not_found → escalate]
+  AN --> RV["Output review (Haiku)<br/>reply vs cited chunks + policy"]
+  RV -- pass --> O1[answered + citations / small_talk]
+  RV -- fail --> O4[rejected → escalate]
 ```
 
 `POST /api/v1/knowledge/query` (admin) runs the same pipeline outside a conversation. It accepts the per-request switches `hybrid`, `hyde` and `rerank` and returns every intermediate step: rewritten query, candidates, contexts, chunks and latency. The RAG evals and ablations use it.
+
+### Output guardrail
+
+Incoming messages are screened by the `guardrail` node; outgoing LLM replies are checked by an output review ([output-review.ts](src/utils/output-review.ts)) before they are sent. A fast model (Haiku) gets the draft reply, the customer's message and the reference the reply was written from, and returns `pass`, `ungrounded` (a claim the reference does not support) or `policy_violation`. The policy forbids promising refunds, discounts or deadlines the reference does not offer, asking for passwords or card codes, revealing internals or other customers' data, links or contacts not in the reference, legal, medical or financial advice, and rude or off-topic content.
+
+- *Knowledge answers*: the reference is the chunks the answer cites. A rejected answer gets the status `rejected`, is not sent, and the conversation is handed over to a human (`reply_rejected`). `POST /knowledge/query` returns the verdict as `review`. Small talk is reviewed too, with no reference, so it must not state facts about the company. Turn it off with `KNOWLEDGE_OUTPUT_GUARDRAIL_ENABLED=false`.
+- *Action replies*: the reference is the action, its parameters and its result. The action has already run, so a rejected reply is replaced with the canned confirmation instead of being handed over. Turn it off with `INTENT_OUTPUT_GUARDRAIL_ENABLED=false`.
+
+The reviewer is told to flag only clear problems, so it costs one Haiku call per reply and rarely blocks good answers. The verdict and its reason are logged with PII placeholders.
 
 ## Action extraction from API docs
 
@@ -518,6 +529,7 @@ All settings come from `.env` (see [env-example-relational](env-example-relation
 | `INTENT_MAX_CANDIDATES` | `3` | Ranked candidates per message |
 | `INTENT_HISTORY_LIMIT` | `20` | Messages of context |
 | `INTENT_GUARDRAIL_ENABLED` | `true` | Prompt-injection screen |
+| `INTENT_OUTPUT_GUARDRAIL_ENABLED` | `true` | [Output review](#output-guardrail) of action replies |
 | `INTENT_LLM_NODE_TIMEOUT_MS` | `30000` | Per-node timeout for LLM nodes |
 | `INTENT_MAX_REPAIR_ATTEMPTS` / `INTENT_MAX_CLARIFICATION_ROUNDS` | `2` / `2` | Loop bounds |
 | `ACTION_EXECUTION_TIMEOUT_MS` | `10000` | HTTP timeout per action call |
@@ -542,6 +554,7 @@ All settings come from `.env` (see [env-example-relational](env-example-relation
 | `KNOWLEDGE_PREFETCH_LIMIT`, `KNOWLEDGE_RERANK_CANDIDATES`, `KNOWLEDGE_TOP_K`, `KNOWLEDGE_MIN_RELEVANCE` | `40`, `20`, `6`, `2` | Retrieval sizes |
 | `KNOWLEDGE_RERANK_ENABLED`, `KNOWLEDGE_HYDE_ENABLED` | `true`, `false` | Pipeline switches |
 | `KNOWLEDGE_HISTORY_LIMIT` | `6` | Turns used for query rewriting |
+| `KNOWLEDGE_OUTPUT_GUARDRAIL_ENABLED` | `true` | [Output review](#output-guardrail) of answers against their cited chunks |
 
 **Privacy** ([privacy.config.ts](src/privacy/config/privacy.config.ts)): `PII_REDACTION_ENABLED` (`true`), `DATA_RETENTION_DAYS` (unset, so data is kept forever), `DATA_RETENTION_INTERVAL_MINUTES` (`60`).
 

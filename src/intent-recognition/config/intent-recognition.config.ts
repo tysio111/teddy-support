@@ -57,6 +57,10 @@ class EnvironmentVariablesValidator {
   @IsOptional()
   INTENT_GUARDRAIL_ENABLED: boolean;
 
+  @IsBoolean()
+  @IsOptional()
+  INTENT_OUTPUT_GUARDRAIL_ENABLED: boolean;
+
   @IsInt()
   @Min(1)
   @IsOptional()
@@ -155,6 +159,8 @@ export default registerAs<IntentRecognitionConfig>('intentRecognition', () => {
     actionExecutionTimeoutMs: intEnv('ACTION_EXECUTION_TIMEOUT_MS', 10000),
 
     guardrailEnabled: process.env.INTENT_GUARDRAIL_ENABLED !== 'false',
+    outputGuardrailEnabled:
+      process.env.INTENT_OUTPUT_GUARDRAIL_ENABLED !== 'false',
     llmNodeTimeoutMs: intEnv('INTENT_LLM_NODE_TIMEOUT_MS', 30000),
     maxRepairAttempts: intEnv('INTENT_MAX_REPAIR_ATTEMPTS', 2),
     maxClarificationRounds: intEnv('INTENT_MAX_CLARIFICATION_ROUNDS', 2),

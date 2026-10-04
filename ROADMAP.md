@@ -1,6 +1,6 @@
 # Roadmap
 
-Candidate features for Teddy Support, based on what [README.md](README.md) describes and what `src/` contains today. Apart from the hand-off inbox and summary, and PII redaction with retention and GDPR erasure, none of them are implemented yet. The code currently has no WebSocket or SSE, no webhooks, no feedback or CSAT and no rate limiting. The only scheduled job is the retention purge, which runs on an in-process timer. Events and the per-conversation lock are in-process only, the deterministic bot replies are English only, and CI does not run the unit tests.
+Candidate features for Teddy Support, based on what [README.md](README.md) describes and what `src/` contains today. Apart from the hand-off inbox and summary, PII redaction with retention and GDPR erasure, and the output guardrail, none of them are implemented yet. The code currently has no WebSocket or SSE, no webhooks, no feedback or CSAT and no rate limiting. The only scheduled job is the retention purge, which runs on an in-process timer. Events and the per-conversation lock are in-process only, the deterministic bot replies are English only, and CI does not run the unit tests.
 
 ## Suggested order
 
@@ -37,7 +37,7 @@ Candidate features for Teddy Support, based on what [README.md](README.md) descr
 ## 4. Safety and compliance
 
 - ~~**PII redaction**~~ before LLM calls and logging (card numbers, emails, phones), plus data retention and GDPR deletion per client: done (see [README](README.md#privacy)). Possible follow-ups: a GDPR data export (`GET /clients/:id/personal-data`), encrypting message content at rest, and NER-based detection of names and addresses.
-- **Output guardrail**: check the answer against the cited chunks and policy before sending it. Today only incoming messages are screened.
+- ~~**Output guardrail**~~: check the answer against the cited chunks and policy before sending it: done (see [README](README.md#output-guardrail)). Possible follow-up: show the rejected draft and the review reason to the agent in the hand-off context.
 - **Indirect prompt injection screening**: action responses and indexed help-centre documents also reach the LLM and are untrusted, but the guardrail only screens client messages.
 - **Rate limiting** per client or conversation (`@nestjs/throttler`) and a cost budget per conversation.
 - **Credentials**: encrypt `Action.authCredential` at rest, and add OAuth2 client credentials as an `authType`.

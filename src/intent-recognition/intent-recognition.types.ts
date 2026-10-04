@@ -6,6 +6,7 @@ import {
   Citation,
   KnowledgeAnswerStatusEnum,
 } from '../knowledge/knowledge.types';
+import { OutputReview } from '../utils/output-review';
 
 export type CatalogAction = {
   action: Action;
@@ -46,6 +47,7 @@ export type KnowledgeRunSummary = {
   candidates: number;
   chunks: number;
   citations: Citation[];
+  review: OutputReview | null;
 };
 
 export type GraphError = {
@@ -99,6 +101,8 @@ export enum IntentOutcomeEnum {
   // Knowledge base path (messages that match no action)
   answered = 'answered',
   noAnswer = 'no_answer',
+  // The drafted answer failed the output review and was not sent.
+  replyRejected = 'reply_rejected',
   belowThreshold = 'below_threshold',
   needsClarification = 'needs_clarification',
   awaitingConfirmation = 'awaiting_confirmation',

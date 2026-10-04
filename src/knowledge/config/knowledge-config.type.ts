@@ -40,4 +40,8 @@ export type KnowledgeConfig = {
   hydeEnabled: boolean;
   rerankEnabled: boolean;
   historyLimit: number;
+
+  // Checks each reply against its cited sources and the policy before it is
+  // sent; a rejected reply is handed over to a human.
+  outputGuardrailEnabled: boolean;
 };

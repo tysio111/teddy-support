@@ -1,5 +1,6 @@
 import { Message } from '../messages/domain/message';
 import { Resource } from '../resources/domain/resource';
+import { OutputReview } from '../utils/output-review';
 
 // What retrieval needs from a conversation. Message satisfies it, so does a
 // plain transcript sent to the eval endpoint.
@@ -53,12 +54,17 @@ export enum KnowledgeAnswerStatusEnum {
   // The knowledge base does not cover the question: hand over to a human
   // instead of replying.
   notFound = 'not_found',
+  // A reply was drafted but failed the output review (ungrounded or against
+  // policy): hand over to a human instead of sending it.
+  rejected = 'rejected',
 }
 
 export type KnowledgeAnswer = {
   status: KnowledgeAnswerStatusEnum;
-  // Null when not found.
+  // Null when not found or rejected.
   reply: string | null;
   citations: Citation[];
   retrieval: RetrievalResult;
+  // Null when the review is off or there was no reply to review.
+  review: OutputReview | null;
 };

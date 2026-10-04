@@ -26,7 +26,7 @@ function chunk(
   };
 }
 
-function setup(chunks: RetrievedChunk[]) {
+function setup(chunks: RetrievedChunk[], outputGuardrailEnabled = false) {
   const retrieval: RetrievalResult = {
     rewrittenQuery: 'query',
     hypotheticalAnswer: null,
@@ -40,9 +40,16 @@ function setup(chunks: RetrievedChunk[]) {
       reply: 'The answer.',
       usedChunks: chunks.map((_, index) => index),
     }),
+    reviewAnswer: jest
+      .fn()
+      .mockResolvedValue({ verdict: 'pass', reason: 'Grounded.' }),
   };
   const service = new KnowledgeService(
-    { enabled: true, historyLimit: 1 } as KnowledgeConfig,
+    {
+      enabled: true,
+      historyLimit: 1,
+      outputGuardrailEnabled,
+    } as KnowledgeConfig,
     retriever as unknown as KnowledgeRetriever,
     llm as unknown as KnowledgeLlmService,
   );
@@ -110,5 +117,61 @@ describe('KnowledgeService', () => {
     expect(llm.answer).toHaveBeenCalledWith(
       expect.objectContaining({ history: [history[1]] }),
     );
+  });
+
+  describe('output guardrail', () => {
+    it('should review the reply against the cited chunks only', async () => {
+      const chunks = [chunk('a', 'r1', []), chunk('b', 'r2', [])];
+      const { service, llm } = setup(chunks, true);
+      llm.answer.mockResolvedValue({
+        status: KnowledgeAnswerStatusEnum.answered,
+        reply: 'The answer.',
+        usedChunks: [1],
+      });
+
+      const result = await service.answer({ message: 'question', history: [] });
+
+      expect(llm.reviewAnswer).toHaveBeenCalledWith({
+        question: 'question',
+        reply: 'The answer.',
+        citedChunks: [chunks[1]],
+      });
+      expect(result.status).toBe(KnowledgeAnswerStatusEnum.answered);
+      expect(result.reply).toBe('The answer.');
+      expect(result.review).toEqual({ verdict: 'pass', reason: 'Grounded.' });
+    });
+
+    it('should withhold a reply that fails the review', async () => {
+      const { service, llm } = setup([chunk('a', 'r1', [])], true);
+      llm.reviewAnswer.mockResolvedValue({
+        verdict: 'ungrounded',
+        reason: 'The price is not in the sources.',
+      });
+
+      const result = await service.answer({ message: 'question', history: [] });
+
+      expect(result.status).toBe(KnowledgeAnswerStatusEnum.rejected);
+      expect(result.reply).toBeNull();
+      expect(result.review?.verdict).toBe('ungrounded');
+    });
+
+    it('should not review when there is no reply or the review is off', async () => {
+      const notFound = setup([], true);
+      notFound.llm.answer.mockResolvedValue({
+        status: KnowledgeAnswerStatusEnum.notFound,
+        reply: null,
+        usedChunks: [],
+      });
+      const disabled = setup([chunk('a', 'r1', [])]);
+
+      const results = await Promise.all([
+        notFound.service.answer({ message: 'question', history: [] }),
+        disabled.service.answer({ message: 'question', history: [] }),
+      ]);
+
+      expect(notFound.llm.reviewAnswer).not.toHaveBeenCalled();
+      expect(disabled.llm.reviewAnswer).not.toHaveBeenCalled();
+      expect(results.map(({ review }) => review)).toEqual([null, null]);
+    });
   });
 });

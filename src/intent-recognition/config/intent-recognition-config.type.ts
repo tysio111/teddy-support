@@ -12,6 +12,8 @@ export type IntentRecognitionConfig = {
 
   // Resilience
   guardrailEnabled: boolean;
+  // Checks generated replies against the action result and the policy.
+  outputGuardrailEnabled: boolean;
   llmNodeTimeoutMs: number;
   maxRepairAttempts: number;
   maxClarificationRounds: number;

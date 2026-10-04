@@ -2,6 +2,12 @@ import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { z } from 'zod';
 import { PiiRedactor } from '../../privacy/pii/pii-redactor';
 import {
+  buildOutputReviewPrompt,
+  OUTPUT_REVIEW_SYSTEM_PROMPT,
+  OutputReview,
+  outputReviewSchema,
+} from '../../utils/output-review';
+import {
   ConversationTurn,
   KnowledgeAnswerStatusEnum,
   RetrievedChunk,
@@ -9,6 +15,7 @@ import {
 import {
   ANSWER_SYSTEM_PROMPT,
   buildAnswerPrompt,
+  formatSources,
 } from '../prompts/answer.prompt';
 import {
   buildChunksPrompt,
@@ -188,6 +195,30 @@ export class KnowledgeLlmService {
         .filter((id) => id >= 1 && id <= input.chunks.length)
         .map((id) => id - 1),
     };
+  }
+
+  // Output guardrail: checks the reply against the sources it cites and the
+  // policy. The reason keeps its placeholders, since it is logged.
+  async reviewAnswer(input: {
+    question: string;
+    reply: string;
+    citedChunks: RetrievedChunk[];
+  }): Promise<OutputReview> {
+    const { fast } = this.getModels();
+    return this.redactor
+      .wrap(withStructuredOutput(fast, outputReviewSchema, 'review_reply'), {
+        restore: false,
+      })
+      .invoke([
+        new SystemMessage(OUTPUT_REVIEW_SYSTEM_PROMPT),
+        new HumanMessage(
+          buildOutputReviewPrompt({
+            reference: formatSources(input.citedChunks),
+            message: input.question,
+            reply: input.reply,
+          }),
+        ),
+      ]);
   }
 
   private getModels(): KnowledgeChatModels {

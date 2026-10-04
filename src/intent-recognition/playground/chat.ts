@@ -202,6 +202,10 @@ function printSummary(result: IntentGraphRunResult, ms: number): void {
     for (const { resourceTitle, headingPath } of citations) {
       lines.push(`source: ${[resourceTitle, ...headingPath].join(' > ')}`);
     }
+    if (result.knowledge.review) {
+      const { verdict, reason } = result.knowledge.review;
+      lines.push(`review: ${verdict}, ${reason}`);
+    }
   }
   if (result.error) {
     lines.push(`error: ${result.error.node}: ${result.error.message}`);

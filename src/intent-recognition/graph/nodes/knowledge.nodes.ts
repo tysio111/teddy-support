@@ -4,7 +4,7 @@ import { IntentGraphDeps } from '../intent-graph.deps';
 import { IntentGraphStateType, IntentGraphUpdate } from '../intent-graph.state';
 
 // Messages that match no action: answer from the knowledge base, or hand over
-// to a human when it has no answer. The reply is sent last, so a retry of
+// to a human when it has no answer or the answer failed the output review. The reply is sent last, so a retry of
 // this node never sends it twice.
 export function answerFromKnowledge({
   messagesService,
@@ -25,10 +25,14 @@ export function answerFromKnowledge({
       candidates: result.retrieval.candidates,
       chunks: result.retrieval.chunks.length,
       citations: result.citations,
+      review: result.review,
     };
 
     if (result.status === KnowledgeAnswerStatusEnum.notFound) {
       return { knowledge, outcome: IntentOutcomeEnum.noAnswer };
+    }
+    if (result.status === KnowledgeAnswerStatusEnum.rejected) {
+      return { knowledge, outcome: IntentOutcomeEnum.replyRejected };
     }
 
     await messagesService.createBotMessage(message.conversation, result.reply!);

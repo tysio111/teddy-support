@@ -5,6 +5,7 @@ import {
   buildDeclinedReply,
   buildFallbackReply,
 } from '../../prompts/bot-replies';
+import { OutputReviewVerdictEnum } from '../../../utils/output-review';
 import { IntentOutcomeEnum } from '../../intent-recognition.types';
 import { IntentGraphDeps } from '../intent-graph.deps';
 import {
@@ -120,18 +121,41 @@ export function finalizeExecution({ detectedIntentsService }: IntentGraphDeps) {
 }
 
 export function generateResponse({
+  config,
+  logger,
   messagesService,
   intentLlmService,
 }: IntentGraphDeps) {
   return async (state: IntentGraphStateType): Promise<IntentGraphUpdate> => {
-    const content =
-      state.outcome === IntentOutcomeEnum.declined
-        ? buildDeclinedReply()
-        : await intentLlmService.generateReply({
-            action: state.topCatalogAction!.action,
-            parameters: state.extractedParameters,
-            responsePayload: state.executionResult?.responsePayload ?? null,
-          });
+    let content: string;
+    if (state.outcome === IntentOutcomeEnum.declined) {
+      content = buildDeclinedReply();
+    } else {
+      const action = state.topCatalogAction!.action;
+      const input = {
+        action,
+        parameters: state.extractedParameters,
+        responsePayload: state.executionResult?.responsePayload ?? null,
+      };
+      content = await intentLlmService.generateReply(input);
+
+      // Output guardrail: the action already ran, so a rejected reply is
+      // replaced with the canned one rather than handed over.
+      if (config.outputGuardrailEnabled) {
+        const review = await intentLlmService.reviewReply({
+          ...input,
+          message: state.message!.content,
+          reply: content,
+        });
+        if (review.verdict !== OutputReviewVerdictEnum.pass) {
+          logger.warn(
+            `Reply for message ${state.messageId} rejected by output review ` +
+              `(${review.verdict}): ${review.reason}`,
+          );
+          content = buildFallbackReply(action);
+        }
+      }
+    }
 
     await messagesService.createBotMessage(
       state.message!.conversation,
