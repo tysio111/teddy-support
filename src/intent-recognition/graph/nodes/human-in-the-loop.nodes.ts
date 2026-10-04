@@ -14,7 +14,11 @@ import {
   ResumeValue,
 } from '../../intent-recognition.types';
 import { IntentGraphDeps } from '../intent-graph.deps';
-import { parseConfirmation, recognitionResult } from '../intent-graph.helpers';
+import {
+  combineBurst,
+  parseConfirmation,
+  recognitionResult,
+} from '../intent-graph.helpers';
 import { IntentGraphStateType, IntentGraphUpdate } from '../intent-graph.state';
 
 export function askClarification({ messagesService }: IntentGraphDeps) {
@@ -90,8 +94,13 @@ export function awaitConfirmation({
       actionName: state.topCatalogAction!.action.name,
     });
 
-    const reply = await messagesService.findById(answer.messageId);
-    const decision = parseConfirmation(reply?.content ?? '');
+    const replies = await messagesService.findByIds([
+      ...(answer.precedingMessageIds ?? []),
+      answer.messageId,
+    ]);
+    const decision = parseConfirmation(
+      replies.length ? combineBurst(replies).content : '',
+    );
     if (decision === ConfirmationAnswerEnum.yes) {
       return { outcome: null };
     }

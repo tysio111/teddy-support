@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { OnEvent } from '@nestjs/event-emitter';
 import { AllConfigType } from '../config/config.type';
@@ -14,15 +14,25 @@ import {
 } from './graph/intent-graph.service';
 import { IntentOutcomeEnum } from './intent-recognition.types';
 
+type Burst = {
+  messageIds: string[];
+  firstAt: number;
+  timer: NodeJS.Timeout;
+};
+
 @Injectable()
-export class IntentRecognitionListener {
+export class IntentRecognitionListener implements OnModuleDestroy {
   private readonly logger = new Logger(IntentRecognitionListener.name);
 
   // Runs of one conversation share a checkpoint thread, so they must not
-  // overlap. In-process only: multiple instances would need a distributed
-  // lock (e.g. a Postgres advisory lock) or a queue partitioned by
-  // conversation.
+  // overlap. In-process only (as is the debounce below): multiple instances
+  // would need a distributed lock (e.g. a Postgres advisory lock) or a queue
+  // partitioned by conversation.
   private readonly conversationLocks = new Map<string, Promise<void>>();
+
+  // Clients often split one request ("hi", "my order", "ORD-1"). Messages
+  // arriving within `debounceMs` of each other are processed as one run.
+  private readonly bursts = new Map<string, Burst>();
 
   constructor(
     private readonly configService: ConfigService<AllConfigType>,
@@ -39,9 +49,78 @@ export class IntentRecognitionListener {
       return;
     }
 
-    const input = {
-      messageId: event.messageId,
-      conversationId: event.conversationId,
+    if (
+      !this.configService.get('intentRecognition.debounceMs', { infer: true })
+    ) {
+      await this.processBurst(event.conversationId, [event.messageId]);
+      return;
+    }
+
+    this.debounce(event.conversationId, event.messageId);
+  }
+
+  // Processes pending bursts right away, so a graceful shutdown does not
+  // drop them.
+  async onModuleDestroy(): Promise<void> {
+    const pending = [...this.bursts.entries()];
+    this.bursts.clear();
+
+    await Promise.all(
+      pending.map(([conversationId, burst]) => {
+        clearTimeout(burst.timer);
+        return this.processBurst(conversationId, burst.messageIds);
+      }),
+    );
+  }
+
+  // Runs (or resumes) the graph for a client message. Public so tools like the
+  // chat script can drive the same flow without the event; throws on failure.
+  recognize(input: IntentGraphInput): Promise<IntentGraphRunResult> {
+    return this.withConversationLock(input.conversationId, () =>
+      this.process(input),
+    );
+  }
+
+  // Restarts the conversation's timer on every message, but never waits more
+  // than `debounceMaxWaitMs` from the first one.
+  private debounce(conversationId: string, messageId: string): void {
+    const debounceMs = this.configService.getOrThrow(
+      'intentRecognition.debounceMs',
+      { infer: true },
+    );
+    const maxWaitMs = this.configService.getOrThrow(
+      'intentRecognition.debounceMaxWaitMs',
+      { infer: true },
+    );
+
+    const now = Date.now();
+    const burst = this.bursts.get(conversationId);
+    if (burst) {
+      clearTimeout(burst.timer);
+      burst.messageIds.push(messageId);
+    }
+    const firstAt = burst?.firstAt ?? now;
+    const messageIds = burst?.messageIds ?? [messageId];
+
+    const timer = setTimeout(
+      () => {
+        this.bursts.delete(conversationId);
+        void this.processBurst(conversationId, messageIds);
+      },
+      Math.max(0, Math.min(debounceMs, firstAt + maxWaitMs - now)),
+    );
+    this.bursts.set(conversationId, { messageIds, firstAt, timer });
+  }
+
+  // Must never throw: it runs detached from the event.
+  private async processBurst(
+    conversationId: string,
+    messageIds: string[],
+  ): Promise<void> {
+    const input: IntentGraphInput = {
+      messageId: messageIds[messageIds.length - 1],
+      conversationId,
+      precedingMessageIds: messageIds.slice(0, -1),
     };
 
     try {
@@ -52,14 +131,6 @@ export class IntentRecognitionListener {
         error instanceof Error ? error.stack : String(error),
       );
     }
-  }
-
-  // Runs (or resumes) the graph for a client message. Public so tools like the
-  // chat script can drive the same flow without the event; throws on failure.
-  recognize(input: IntentGraphInput): Promise<IntentGraphRunResult> {
-    return this.withConversationLock(input.conversationId, () =>
-      this.process(input),
-    );
   }
 
   private async process(
@@ -87,8 +158,12 @@ export class IntentRecognitionListener {
       ? `waiting for ${result.pendingInput.type}`
       : result.outcome;
 
+    const burst = input.precedingMessageIds?.length
+      ? ` (with ${input.precedingMessageIds.length} earlier)`
+      : '';
+
     this.logger.log(
-      `Message ${input.messageId}: ${status}` +
+      `Message ${input.messageId}${burst}: ${status}` +
         (result.escalated ? ' (escalated)' : '') +
         (result.topIntent ? ` (detectedIntent ${result.topIntent.id})` : '') +
         ` [${totalMs}ms, ${result.usage.llmCalls} LLM calls, ` +

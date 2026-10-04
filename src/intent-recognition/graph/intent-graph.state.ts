@@ -46,6 +46,7 @@ function mergeExtractions(
 export const IntentGraphState = Annotation.Root({
   // Input
   messageId: Annotation<Message['id']>,
+  precedingMessageIds: Annotation<Message['id'][]>,
 
   // Context
   message: Annotation<Message | null>,
@@ -100,9 +101,11 @@ export type IntentGraphUpdate = typeof IntentGraphState.Update;
 // checkpoint. Reset every channel explicitly to start from a clean slate.
 export function freshRunInput(input: {
   messageId: Message['id'];
+  precedingMessageIds?: Message['id'][];
 }): IntentGraphUpdate {
   return {
-    ...input,
+    messageId: input.messageId,
+    precedingMessageIds: input.precedingMessageIds ?? [],
     message: null,
     history: [],
     catalog: [],

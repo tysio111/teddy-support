@@ -12,9 +12,11 @@ export function answerFromKnowledge({
 }: IntentGraphDeps) {
   return async (state: IntentGraphStateType): Promise<IntentGraphUpdate> => {
     const message = state.message!;
+    // The message may combine a burst; keep all of it out of the history.
+    const current = new Set([message.id, ...state.precedingMessageIds]);
     const result = await knowledgeService.answer({
       message: message.content,
-      history: state.history.filter(({ id }) => id !== message.id),
+      history: state.history.filter(({ id }) => !current.has(id)),
     });
 
     const knowledge = {

@@ -13,8 +13,12 @@ import {
 } from './intent-graph.state';
 
 export type IntentGraphInput = {
+  // The latest message; detected intents are linked to it.
   messageId: Message['id'];
   conversationId: string;
+  // Earlier messages of the same burst (see the listener's debounce), oldest
+  // first. They are processed together with `messageId` as one message.
+  precedingMessageIds?: Message['id'][];
 };
 
 export type IntentGraphRunResult = IntentGraphStateType & {
@@ -57,7 +61,10 @@ export class IntentGraphService {
   resume(input: IntentGraphInput): Promise<IntentGraphRunResult> {
     return this.execute(
       new Command<ResumeValue, IntentGraphUpdate, never>({
-        resume: { messageId: input.messageId },
+        resume: {
+          messageId: input.messageId,
+          precedingMessageIds: input.precedingMessageIds,
+        },
       }),
       input,
     );

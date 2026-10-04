@@ -200,6 +200,7 @@ Every client message runs through a [LangGraph](https://langchain-ai.github.io/l
 ### How a run starts
 
 - Creating a message emits `message.created`. The listener only reacts to `client` messages, and only when `INTENT_RECOGNITION_ENABLED=true`.
+- Client messages are debounced per conversation: a burst ("hi", "my order", "ORD-1") sent within `INTENT_DEBOUNCE_MS` of each other is processed as one run, never later than `INTENT_DEBOUNCE_MAX_WAIT_MS` after the first message. The burst is joined into one message for the guardrail and classification, and detected intents link to the latest message.
 - Runs for the same conversation are serialised by a per-conversation lock.
 - The LangGraph thread is the conversation (`thread_id = conversationId`). If the previous run is paused waiting for the client (clarification or confirmation) and has not expired (`INTENT_PENDING_INPUT_TTL_MS`), the new message **resumes** it. Otherwise a fresh run starts. If the client changed the subject instead of answering a confirmation, the resumed run ends as `superseded` and a fresh run handles the message.
 
@@ -472,6 +473,7 @@ All settings come from `.env` (see [env-example-relational](env-example-relation
 | `INTENT_CIRCUIT_WINDOW_MS`, `_FAILURE_RATE`, `_MIN_CALLS`, `_COOLDOWN_MS` | `300000`, `0.5`, `5`, `30000` | Circuit breaker |
 | `INTENT_CHECKPOINTER` | `postgres` | `postgres` or `memory` |
 | `INTENT_PENDING_INPUT_TTL_MS` | `86400000` | How long a paused run can be resumed |
+| `INTENT_DEBOUNCE_MS`, `INTENT_DEBOUNCE_MAX_WAIT_MS` | `1500`, `5000` | Message debounce window and its cap (`0` disables it) |
 
 **Knowledge base** ([knowledge.config.ts](src/knowledge/config/knowledge.config.ts))
 

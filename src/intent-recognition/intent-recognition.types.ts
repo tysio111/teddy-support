@@ -73,6 +73,8 @@ export type InterruptPayload =
 // Value passed back to `interrupt()` when a paused run is resumed.
 export type ResumeValue = {
   messageId: Message['id'];
+  // Earlier messages of the same burst, oldest first.
+  precedingMessageIds?: Message['id'][];
 };
 
 export enum GuardrailVerdictEnum {

@@ -1,8 +1,10 @@
 import { Action } from '../../actions/domain/action';
 import { ActionParameter } from '../../action-parameters/domain/action-parameter';
+import { Message } from '../../messages/domain/message';
 import { ActionExecutionResult } from '../execution/action-executor.service';
 import { ConfirmationAnswerEnum } from '../intent-recognition.types';
 import {
+  combineBurst,
   computeBackoffMs,
   normalizeCandidates,
   parseConfirmation,
@@ -59,6 +61,30 @@ describe('validateExtraction', () => {
     );
 
     expect(result.invalid.map(({ name }) => name)).toEqual(['amount', 'size']);
+  });
+});
+
+describe('combineBurst', () => {
+  const message = (id: string, content: string, at: string) =>
+    ({ id, content, createdAt: new Date(at) }) as Message;
+
+  it('should merge the messages into the latest one, in order', () => {
+    expect(
+      combineBurst([
+        message('m-3', 'ORD-1', '2026-01-01T10:00:03Z'),
+        message('m-1', 'hi', '2026-01-01T10:00:01Z'),
+        message('m-2', 'my order', '2026-01-01T10:00:02Z'),
+      ]),
+    ).toMatchObject({ id: 'm-3', content: 'hi\nmy order\nORD-1' });
+  });
+
+  it('should keep the input order for equal timestamps', () => {
+    expect(
+      combineBurst([
+        message('m-1', 'hi', '2026-01-01T10:00:00Z'),
+        message('m-2', 'ORD-1', '2026-01-01T10:00:00Z'),
+      ]),
+    ).toMatchObject({ id: 'm-2', content: 'hi\nORD-1' });
   });
 });
 

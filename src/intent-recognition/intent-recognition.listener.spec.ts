@@ -17,7 +17,12 @@ const result = (outcome: string) => ({
 });
 
 describe('IntentRecognitionListener', () => {
-  async function setup(enabled = true) {
+  async function setup(enabled = true, debounceMs = 0) {
+    const config: Record<string, unknown> = {
+      'intentRecognition.enabled': enabled,
+      'intentRecognition.debounceMs': debounceMs,
+      'intentRecognition.debounceMaxWaitMs': 5000,
+    };
     const intentGraphService = {
       run: jest.fn().mockResolvedValue(result('no_intent')),
       resume: jest.fn().mockResolvedValue(result('executed')),
@@ -28,13 +33,20 @@ describe('IntentRecognitionListener', () => {
       providers: [
         IntentRecognitionListener,
         { provide: IntentGraphService, useValue: intentGraphService },
-        { provide: ConfigService, useValue: { get: () => enabled } },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: (key: string) => config[key],
+            getOrThrow: (key: string) => config[key],
+          },
+        },
       ],
     }).compile();
     await moduleRef.init();
 
     return {
       eventEmitter: moduleRef.get(EventEmitter2),
+      listener: moduleRef.get(IntentRecognitionListener),
       intentGraphService,
     };
   }
@@ -45,6 +57,7 @@ describe('IntentRecognitionListener', () => {
   const input = {
     messageId: 'message-1',
     conversationId: 'conversation-1',
+    precedingMessageIds: [],
   };
 
   const event = (sender: string) =>
@@ -128,6 +141,125 @@ describe('IntentRecognitionListener', () => {
 
     expect(intentGraphService.run).toHaveBeenCalledTimes(2);
     expect(overlapped).toBe(false);
+  });
+
+  describe('debounce', () => {
+    beforeEach(() => jest.useFakeTimers());
+    afterEach(() => jest.useRealTimers());
+
+    const send = (
+      eventEmitter: EventEmitter2,
+      messageId: string,
+      conversationId = 'conversation-1',
+    ) =>
+      eventEmitter.emit(
+        MESSAGE_CREATED_EVENT,
+        new MessageCreatedEvent(messageId, conversationId, 'client'),
+      );
+
+    // Lets the async listener and the graph mocks settle under fake timers.
+    const settle = async (ms: number) => {
+      await jest.advanceTimersByTimeAsync(ms);
+    };
+
+    it('should process a burst of messages as one run', async () => {
+      const { eventEmitter, intentGraphService } = await setup(true, 1500);
+
+      send(eventEmitter, 'message-1');
+      await settle(1000);
+      send(eventEmitter, 'message-2');
+      await settle(1000);
+      send(eventEmitter, 'message-3');
+      await settle(1000);
+
+      expect(intentGraphService.run).not.toHaveBeenCalled();
+
+      await settle(500);
+
+      expect(intentGraphService.run).toHaveBeenCalledTimes(1);
+      expect(intentGraphService.run).toHaveBeenCalledWith({
+        messageId: 'message-3',
+        conversationId: 'conversation-1',
+        precedingMessageIds: ['message-1', 'message-2'],
+      });
+    });
+
+    it('should debounce each conversation separately', async () => {
+      const { eventEmitter, intentGraphService } = await setup(true, 1500);
+
+      send(eventEmitter, 'message-1', 'conversation-1');
+      send(eventEmitter, 'message-2', 'conversation-2');
+      await settle(1500);
+
+      expect(intentGraphService.run).toHaveBeenCalledTimes(2);
+      expect(intentGraphService.run).toHaveBeenCalledWith(
+        expect.objectContaining({
+          messageId: 'message-2',
+          conversationId: 'conversation-2',
+          precedingMessageIds: [],
+        }),
+      );
+    });
+
+    it('should not wait longer than the max wait', async () => {
+      const { eventEmitter, intentGraphService } = await setup(true, 1500);
+
+      for (let i = 1; i <= 5; i++) {
+        send(eventEmitter, `message-${i}`);
+        await settle(1000);
+      }
+
+      // Fired 5000ms after the first message, although the client kept typing.
+      expect(intentGraphService.run).toHaveBeenCalledTimes(1);
+      expect(intentGraphService.run).toHaveBeenCalledWith(
+        expect.objectContaining({
+          messageId: 'message-5',
+          precedingMessageIds: [
+            'message-1',
+            'message-2',
+            'message-3',
+            'message-4',
+          ],
+        }),
+      );
+    });
+
+    it('should resume a paused run with the whole burst', async () => {
+      const { eventEmitter, intentGraphService } = await setup(true, 1500);
+      intentGraphService.getPendingInput.mockResolvedValue({
+        payload: { type: 'clarification' },
+        expired: false,
+      });
+
+      send(eventEmitter, 'message-1');
+      send(eventEmitter, 'message-2');
+      await settle(1500);
+
+      expect(intentGraphService.resume).toHaveBeenCalledTimes(1);
+      expect(intentGraphService.resume).toHaveBeenCalledWith({
+        messageId: 'message-2',
+        conversationId: 'conversation-1',
+        precedingMessageIds: ['message-1'],
+      });
+      expect(intentGraphService.run).not.toHaveBeenCalled();
+    });
+
+    it('should process pending bursts on shutdown', async () => {
+      const { eventEmitter, listener, intentGraphService } = await setup(
+        true,
+        1500,
+      );
+
+      send(eventEmitter, 'message-1');
+      await settle(0);
+      await listener.onModuleDestroy();
+
+      expect(intentGraphService.run).toHaveBeenCalledTimes(1);
+
+      // The cleared timer must not run it a second time.
+      await settle(1500);
+      expect(intentGraphService.run).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('should ignore non-client messages', async () => {

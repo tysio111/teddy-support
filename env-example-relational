@@ -88,6 +88,9 @@ INTENT_CIRCUIT_COOLDOWN_MS=30000
 # postgres | memory (memory loses paused conversations on restart)
 INTENT_CHECKPOINTER=postgres
 INTENT_PENDING_INPUT_TTL_MS=86400000
+# Wait this long after a client message for more before processing the burst (0 disables)
+INTENT_DEBOUNCE_MS=1500
+INTENT_DEBOUNCE_MAX_WAIT_MS=5000
 
 # Action extraction from client API docs (PDF / DOCX), uses ANTHROPIC_API_KEY
 DOC_EXTRACTION_MODEL=claude-sonnet-5-5

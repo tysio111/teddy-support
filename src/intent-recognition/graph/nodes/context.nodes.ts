@@ -5,6 +5,7 @@ import {
   IntentOutcomeEnum,
 } from '../../intent-recognition.types';
 import { IntentGraphDeps } from '../intent-graph.deps';
+import { combineBurst } from '../intent-graph.helpers';
 import { IntentGraphStateType, IntentGraphUpdate } from '../intent-graph.state';
 
 export function loadContext({
@@ -14,10 +15,19 @@ export function loadContext({
   actionParametersService,
 }: IntentGraphDeps) {
   return async (state: IntentGraphStateType): Promise<IntentGraphUpdate> => {
-    const message = await messagesService.findById(state.messageId);
-    if (!message) {
+    const latest = await messagesService.findById(state.messageId);
+    if (!latest) {
       return { outcome: IntentOutcomeEnum.skipped };
     }
+
+    // A debounced burst is handled as one message, so the guardrail screens
+    // all of it and classification sees the whole request.
+    const message = state.precedingMessageIds.length
+      ? combineBurst([
+          ...(await messagesService.findByIds(state.precedingMessageIds)),
+          latest,
+        ])
+      : latest;
 
     // No early exit without actions: the message still goes through the
     // guardrail, and the knowledge base may answer it (see classifyIntent).

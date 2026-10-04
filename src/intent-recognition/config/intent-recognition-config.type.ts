@@ -28,4 +28,8 @@ export type IntentRecognitionConfig = {
   // Durable execution / human-in-the-loop
   checkpointer: IntentCheckpointer;
   pendingInputTtlMs: number;
+
+  // Message debounce: a burst of client messages is processed as one run
+  debounceMs: number;
+  debounceMaxWaitMs: number;
 };

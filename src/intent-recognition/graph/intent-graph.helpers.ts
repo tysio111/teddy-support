@@ -16,6 +16,20 @@ import {
 } from '../intent-recognition.types';
 import { IntentGraphStateType } from './intent-graph.state';
 
+// Merges a burst of client messages ("hi", "my order", "ORD-1") into the
+// latest one, so the burst is screened and classified as a single message.
+// Ties keep the input order, so pass the messages oldest first.
+export function combineBurst(messages: Message[]): Message {
+  const ordered = [...messages].sort(
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+  );
+
+  return {
+    ...ordered[ordered.length - 1],
+    content: ordered.map(({ content }) => content).join('\n'),
+  };
+}
+
 export function resolveConfidenceThreshold(
   action: Action,
   defaultThreshold: number,

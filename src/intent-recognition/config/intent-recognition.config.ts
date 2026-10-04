@@ -116,6 +116,16 @@ class EnvironmentVariablesValidator {
   @Min(1)
   @IsOptional()
   INTENT_PENDING_INPUT_TTL_MS: number;
+
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  INTENT_DEBOUNCE_MS: number;
+
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  INTENT_DEBOUNCE_MAX_WAIT_MS: number;
 }
 
 function intEnv(name: string, fallback: number): number {
@@ -163,5 +173,8 @@ export default registerAs<IntentRecognitionConfig>('intentRecognition', () => {
       'INTENT_PENDING_INPUT_TTL_MS',
       24 * 60 * 60 * 1000,
     ),
+
+    debounceMs: intEnv('INTENT_DEBOUNCE_MS', 1500),
+    debounceMaxWaitMs: intEnv('INTENT_DEBOUNCE_MAX_WAIT_MS', 5000),
   };
 });
