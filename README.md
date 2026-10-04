@@ -84,14 +84,7 @@ flowchart LR
   IDX --> QD
 ```
 
-Long-running work is decoupled through in-process events (`@nestjs/event-emitter`, async listeners, no external queue):
-
-| Event | Emitted by | Listener | Work |
-| --- | --- | --- | --- |
-| `message.created` | `MessagesService.create` | [intent-recognition.listener.ts](src/intent-recognition/intent-recognition.listener.ts) | Runs or resumes the intent graph |
-| `action-extraction.requested` | `POST /resources/:id/extract-actions` | [doc-extraction.listener.ts](src/doc-extraction/doc-extraction.listener.ts) | Drafts actions from an API doc |
-| `knowledge-index.requested` | `POST /resources/:id/index` | [knowledge.listener.ts](src/knowledge/knowledge.listener.ts) | Chunks, embeds and indexes a document |
-
+ 
 ## Deployment model
 
 The app is single-tenant: each customer gets its own app instance and its own database, configured through that instance's `.env`. Nothing in the code is scoped by company. Access is controlled by the global roles:
@@ -196,17 +189,6 @@ erDiagram
   }
 ```
 
-| Enum | Values |
-| --- | --- |
-| Action status | `active`, `inactive`, `draft` (extracted from docs, awaiting admin review) |
-| Action auth type | `none`, `bearer`, `api_key`, `basic` |
-| Detected intent status | `detected`, `below_threshold`, `needs_clarification`, `awaiting_confirmation`, `declined`, `executed`, `execution_failed`, `escalated`, `failed` |
-| Action execution status | `success`, `failed` |
-| Message sender | `client`, `agent`, `bot` |
-| Conversation status | `open` (bot handles it), `escalated`, `assigned` (bot paused), `resolved` |
-| Hand-off status | `pending`, `assigned`, `released` (handed back to the bot), `resolved` |
-| Resource status (action extraction) | `uploaded`, `processing`, `extracted`, `failed` |
-| Resource index status (knowledge) | `indexing`, `indexed`, `failed` |
 
 Action credentials are never put into LLM prompts. The catalog given to the model has them stripped, and they are loaded just in time when the action is executed.
 
@@ -291,20 +273,7 @@ Any node whose retries run out routes to `handleError`. The live diagram, genera
 
 Nodes live in [src/intent-recognition/graph/nodes](src/intent-recognition/graph/nodes/) and prompts in [src/intent-recognition/prompts](src/intent-recognition/prompts/).
 
-### Outcomes
-
-Every run ends with one outcome ([intent-recognition.types.ts](src/intent-recognition/intent-recognition.types.ts)):
-
-| Group | Outcomes |
-| --- | --- |
-| Stopped early | `skipped`, `duplicate`, `blocked`, `no_actions`, `no_intent` |
-| Knowledge | `answered`, `no_answer`, `reply_rejected` |
-| Waiting for the client | `needs_clarification`, `awaiting_confirmation` |
-| Ended by the client | `declined`, `superseded` |
-| Action | `executed`, `execution_failed`, `circuit_open` |
-| Hand-off | `human_requested` |
-| Other | `below_threshold`, `failed` |
-
+### 
 `budget_exceeded` is used only as a hand-off reason: the listener checks the [cost budget](#rate-limiting-and-cost-budget) before a run and does not start the graph.
 
 ### Human in the loop
@@ -417,15 +386,6 @@ The reviewer is told to flag only clear problems, so it costs one Haiku call per
 
 Admins attach an API document (PDF or DOCX) to a Resource. [src/doc-extraction](src/doc-extraction/) asks Claude (`DOC_EXTRACTION_MODEL`) to read it with structured output and drafts the action catalog from it: name, method, URL, auth type, confirmation flag and typed parameters.
 
-```mermaid
-stateDiagram-v2
-  [*] --> uploaded
-  uploaded --> processing: POST /resources/:id/extract-actions
-  processing --> extracted: draft Actions + ActionParameters saved
-  processing --> failed: extractionError
-  extracted --> processing: re-run (replaces previous drafts)
-  failed --> processing: retry
-```
 
 Extracted actions are saved with status `draft`. An admin reviews them, adds credentials and sets them to `active` before the intent graph can use them. Re-running extraction replaces earlier drafts and leaves active actions alone.
 
@@ -447,15 +407,6 @@ Each hand-off stores two things for the agent:
 - `context`: facts the graph already had (top action and confidence, extracted and missing parameters, failed executions, knowledge query, error), copied verbatim.
 - `summary`: written in the background by Haiku (`HANDOFF_SUMMARY_MODEL`) from the last `HANDOFF_SUMMARY_HISTORY_LIMIT` messages. It contains the goal, what was tried, open questions, a suggested next step, sentiment and language. `summaryStatus` is `pending`, `ready` or `failed`.
 
-```mermaid
-stateDiagram-v2
-  [*] --> pending: escalateToHuman / POST /handoffs
-  pending --> assigned: assign, or first agent reply
-  pending --> released: release
-  assigned --> released: release (conversation open, bot resumes)
-  pending --> resolved: resolve
-  assigned --> resolved: resolve
-```
 
 Only the assignee or an admin can reply, release or resolve an assigned hand-off. Agents can only assign themselves; admins can assign anyone. A conversation has at most one active hand-off, so escalating again returns the existing one.
 
