@@ -1,0 +1,18 @@
+# Used instead of .dockerignore when building Dockerfile.prod (BuildKit)
+/node_modules
+/.data
+/dist
+/files
+.env
+.env.*
+.git
+.github
+.husky
+.claude
+.deepeval
+.vscode
+/coverage
+/evals
+/test
+/infra
+/deploy

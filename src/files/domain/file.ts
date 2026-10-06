@@ -3,6 +3,7 @@ import { Allow } from 'class-validator';
 import { Transform } from 'class-transformer';
 import fileConfig from '../config/file.config';
 import { FileConfig, FileDriver } from '../config/file-config.type';
+import { s3Credentials } from '../config/s3-credentials';
 
 import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
@@ -32,10 +33,10 @@ export class FileType {
       ) {
         const s3 = new S3Client({
           region: (fileConfig() as FileConfig).awsS3Region ?? '',
-          credentials: {
-            accessKeyId: (fileConfig() as FileConfig).accessKeyId ?? '',
-            secretAccessKey: (fileConfig() as FileConfig).secretAccessKey ?? '',
-          },
+          credentials: s3Credentials(
+            (fileConfig() as FileConfig).accessKeyId,
+            (fileConfig() as FileConfig).secretAccessKey,
+          ),
         });
 
         const command = new GetObjectCommand({

@@ -2,3 +2,9 @@
 /.data
 /dist
 /files
+# Never copy local secrets into an image
+.env
+.env.*
+.git
+.claude
+.deepeval

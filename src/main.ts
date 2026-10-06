@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory, Reflector } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { useContainer } from 'class-validator';
 import { AppModule } from './app.module';
@@ -18,7 +19,9 @@ import { RedactingLogger } from './privacy/pii/redacting-logger';
 
 async function bootstrap() {
   // Boot logs are buffered until the redacting logger is installed.
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    bufferLogs: true,
+  });
   useContainer(app.select(AppModule), { fallbackOnErrors: true });
   const configService = app.get(ConfigService<AllConfigType>);
   app.useLogger(
@@ -43,6 +46,15 @@ async function bootstrap() {
   app.enableCors({
     origin: corsOrigins.includes('*') ? '*' : corsOrigins,
   });
+
+  // Behind a reverse proxy (e.g. Caddy) req.ip, and with it the per-IP rate
+  // limit, must come from X-Forwarded-For.
+  const trustProxyHops = configService.getOrThrow('app.trustProxyHops', {
+    infer: true,
+  });
+  if (trustProxyHops > 0) {
+    app.set('trust proxy', trustProxyHops);
+  }
 
   app.enableShutdownHooks();
   app.setGlobalPrefix(

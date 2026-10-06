@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# First-boot setup of the API host (Amazon Linux 2023, arm64).
+set -euxo pipefail
+
+dnf install -y docker jq
+systemctl enable --now docker
+
+# Docker Compose v2 plugin (not packaged for AL2023)
+mkdir -p /usr/libexec/docker/cli-plugins
+curl -fsSL -o /usr/libexec/docker/cli-plugins/docker-compose \
+  "https://github.com/docker/compose/releases/download/v5.6.0/docker-compose-linux-aarch64"
+chmod +x /usr/libexec/docker/cli-plugins/docker-compose
+
+# Amazon RDS CA bundle, mounted into the API container (NODE_EXTRA_CA_CERTS)
+curl -fsSL -o /etc/ssl/rds-global-bundle.pem \
+  https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem
+
+# Data volume (Qdrant). It is attached after the instance starts, so wait for
+# it; on Nitro instances it shows up as an NVMe device whose serial is the
+# volume id without the dash.
+serial="$(echo '${data_volume_id}' | tr -d '-')"
+for _ in $(seq 1 60); do
+  device="$(lsblk -dno NAME,SERIAL | awk -v s="$serial" '$2 == s { print "/dev/" $1 }')"
+  [[ -n "$device" ]] && break
+  sleep 5
+done
+[[ -n "$device" ]]
+blkid "$device" || mkfs.xfs "$device"
+mkdir -p /data
+echo "UUID=$(blkid -s UUID -o value "$device") /data xfs defaults,nofail 0 2" >> /etc/fstab
+mount /data
+mkdir -p /data/qdrant
+
+cat > /etc/teddy-support.env <<'ENV'
+AWS_REGION=${region}
+ECR_REPOSITORY_URL=${ecr_repository_url}
+DOMAIN=${domain}
+SSM_PATH=${ssm_path}
+DEPLOY_BUCKET=${deploy_bucket}
+ENV
+
+mkdir -p /opt/teddy-support

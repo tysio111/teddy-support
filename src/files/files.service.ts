@@ -8,6 +8,7 @@ import { FileRepository } from './infrastructure/persistence/file.repository';
 import { FileType } from './domain/file';
 import { NullableType } from '../utils/types/nullable.type';
 import { AllConfigType } from '../config/config.type';
+import { s3Credentials } from './config/s3-credentials';
 import { FileDriver } from './config/file-config.type';
 
 @Injectable()
@@ -38,14 +39,10 @@ export class FilesService {
 
     const s3 = new S3Client({
       region: this.configService.get('file.awsS3Region', { infer: true }),
-      credentials: {
-        accessKeyId: this.configService.getOrThrow('file.accessKeyId', {
-          infer: true,
-        }),
-        secretAccessKey: this.configService.getOrThrow('file.secretAccessKey', {
-          infer: true,
-        }),
-      },
+      credentials: s3Credentials(
+        this.configService.get('file.accessKeyId', { infer: true }),
+        this.configService.get('file.secretAccessKey', { infer: true }),
+      ),
     });
     const response = await s3.send(
       new GetObjectCommand({

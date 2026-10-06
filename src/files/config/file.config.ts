@@ -1,6 +1,6 @@
 import { registerAs } from '@nestjs/config';
 
-import { IsEnum, IsString, ValidateIf } from 'class-validator';
+import { IsEnum, IsOptional, IsString, ValidateIf } from 'class-validator';
 import validateConfig from '../../utils/validate-config';
 import { FileDriver, FileConfig } from './file-config.type';
 
@@ -8,17 +8,15 @@ class EnvironmentVariablesValidator {
   @IsEnum(FileDriver)
   FILE_DRIVER: FileDriver;
 
-  @ValidateIf((envValues) =>
-    [FileDriver.S3, FileDriver.S3_PRESIGNED].includes(envValues.FILE_DRIVER),
-  )
+  // Optional: without static keys the AWS SDK uses its default credential
+  // chain (e.g. an EC2 instance role).
+  @IsOptional()
   @IsString()
-  ACCESS_KEY_ID: string;
+  ACCESS_KEY_ID?: string;
 
-  @ValidateIf((envValues) =>
-    [FileDriver.S3, FileDriver.S3_PRESIGNED].includes(envValues.FILE_DRIVER),
-  )
+  @IsOptional()
   @IsString()
-  SECRET_ACCESS_KEY: string;
+  SECRET_ACCESS_KEY?: string;
 
   @ValidateIf((envValues) =>
     [FileDriver.S3, FileDriver.S3_PRESIGNED].includes(envValues.FILE_DRIVER),

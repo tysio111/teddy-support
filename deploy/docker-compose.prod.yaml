@@ -1,0 +1,54 @@
+# Production stack on the EC2 host. Postgres lives in RDS.
+# Started by deploy/deploy.sh; API_IMAGE is set there.
+services:
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    ports:
+      - 80:80
+      - 443:443
+      - 443:443/udp
+    environment:
+      DOMAIN: ${DOMAIN:?DOMAIN is required}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - api
+    logging: &logging
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '5'
+
+  api:
+    image: ${API_IMAGE:?API_IMAGE is required}
+    restart: unless-stopped
+    env_file: .env.prod
+    environment:
+      QDRANT_URL: http://qdrant:6333
+      # Amazon RDS CA bundle, so the Postgres TLS certificate is verified
+      # (DATABASE_SSL_ENABLED=true, DATABASE_REJECT_UNAUTHORIZED=true)
+      NODE_EXTRA_CA_CERTS: /etc/ssl/rds-global-bundle.pem
+    volumes:
+      - /etc/ssl/rds-global-bundle.pem:/etc/ssl/rds-global-bundle.pem:ro
+    expose:
+      - '3001'
+    depends_on:
+      - qdrant
+    logging: *logging
+
+  qdrant:
+    image: qdrant/qdrant:v1.19.1
+    restart: unless-stopped
+    # Not published: only reachable from the api container.
+    expose:
+      - '6333'
+    volumes:
+      - /data/qdrant:/qdrant/storage
+    logging: *logging
+
+volumes:
+  caddy-data:
+  caddy-config:
