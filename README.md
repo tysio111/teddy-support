@@ -94,36 +94,7 @@ The app is single-tenant: each customer gets its own app instance and its own da
 
 Per-customer settings such as `INTENT_DEFAULT_CONFIDENCE_THRESHOLD` are environment variables.
 
-## Domain model
-
-```mermaid
-erDiagram
-  CLIENT ||--o{ CONVERSATION : has
-  CONVERSATION ||--o{ MESSAGE : contains
-  MESSAGE ||--o{ DETECTED_INTENT : "classified as"
-  ACTION |o--o{ DETECTED_INTENT : matches
-  ACTION ||--o{ ACTION_PARAMETER : defines
-  ACTION ||--o{ ACTION_EXECUTION : "called in"
-  DETECTED_INTENT ||--o{ ACTION_EXECUTION : "one row per attempt"
-  RESOURCE |o--o{ ACTION : "drafted from"
-  RESOURCE |o--o| FILE : stores
-  ROLE ||--o{ USER : ""
-  STATUS ||--o{ USER : ""
-  USER ||--o{ SESSION : ""
-  USER |o--o| FILE : photo
-  CONVERSATION ||--o{ HANDOFF : "escalated in"
-  USER |o--o{ HANDOFF : "assigned to"
-
-  CLIENT {
-    uuid id
-    string name
-    string email
-    string externalReference
-  }
-  CONVERSATION {
-    uuid id
-    string channel
-    enum status
+## Domain
     datetime lastMessageAt
   }
   HANDOFF {
