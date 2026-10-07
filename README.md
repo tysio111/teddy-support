@@ -12,20 +12,16 @@ Admins can also upload API documentation and let Claude draft the action catalog
 
 - [Architecture](#architecture)
 - [Deployment model](#deployment-model)
-- [Domain](#domain)
 - [Intent recognition](#intent-recognition)
   - [How a run starts](#how-a-run-starts)
   - [Graph](#graph)
   - [Nodes](#nodes)
-  - [Human in the loop](#human-in-the-loop)
+  - [Outcomes](#outcomes)
   - [Resilience](#resilience)
 - [Knowledge base (RAG)](#knowledge-base-rag)
   - [Indexing](#indexing)
   - [Answering](#answering)
-  - [Output guardrail](#output-guardrail)
 - [Action extraction from API docs](#action-extraction-from-api-docs)
-- [Human hand-off](#human-hand-off)
-  - [Escalation on request](#escalation-on-request)
 - [Privacy](#privacy)
 - [Rate limiting and cost budget](#rate-limiting-and-cost-budget)
 - [REST API](#rest-api)
@@ -94,72 +90,6 @@ The app is single-tenant: each customer gets its own app instance and its own da
 - `admin` and `user` handle clients, conversations and messages.
 
 Per-customer settings such as `INTENT_DEFAULT_CONFIDENCE_THRESHOLD` are environment variables.
-
-## Domain
-    datetime lastMessageAt
-  }
-  HANDOFF {
-    uuid id
-    string reason
-    enum status
-    text context
-    text summary
-    enum summaryStatus
-    datetime assignedAt
-    datetime closedAt
-  }
-  MESSAGE {
-    uuid id
-    string content
-    enum sender
-  }
-  DETECTED_INTENT {
-    uuid id
-    float confidenceScore
-    int rank
-    enum status
-    json extractedParameters
-  }
-  ACTION {
-    uuid id
-    string name
-    string description
-    string endpointUrl
-    string httpMethod
-    enum authType
-    string authCredential
-    float confidenceThreshold
-    enum status
-    bool requiresConfirmation
-  }
-  ACTION_PARAMETER {
-    uuid id
-    string name
-    string type
-    string description
-    bool isRequired
-    string enumValues
-    int order
-  }
-  ACTION_EXECUTION {
-    uuid id
-    json requestPayload
-    enum status
-    int responseStatusCode
-    json responsePayload
-    string errorMessage
-    datetime executedAt
-  }
-  RESOURCE {
-    uuid id
-    string title
-    string type
-    string sourceUrl
-    enum status
-    enum indexStatus
-    string vectorRef
-  }
-```
 
 
 Action credentials are never put into LLM prompts. The catalog given to the model has them stripped, and they are loaded just in time when the action is executed.
@@ -252,33 +182,6 @@ Nodes live in [src/intent-recognition/graph/nodes](src/intent-recognition/graph/
 
 The run pauses with `interrupt()` and its state is checkpointed in Postgres (schema `langgraph`). The client's next message resumes it, even after the process restarts. The example below uses the e-commerce seed data.
 
-```mermaid
-sequenceDiagram
-  autonumber
-  actor Client
-  participant API as Messages API
-  participant G as Intent graph
-  participant CP as Postgres checkpointer
-  participant Biz as Business API
-
-  Client->>API: "Cancel my order please"
-  API-->>G: message.created → run()
-  G->>G: classify → cancel_order (0.93)<br/>extract → orderId missing
-  G->>Client: "Which order number?"
-  G->>CP: interrupt (clarification)
-  Client->>API: "ORD-100234"
-  API-->>G: message.created → resume()
-  G->>CP: load state
-  G->>G: re-extract → orderId = ORD-100234
-  G->>Client: "Cancel order ORD-100234? (yes/no)"
-  G->>CP: interrupt (confirmation)
-  Client->>API: "yes"
-  API-->>G: resume()
-  G->>G: checkCircuit (closed)
-  G->>Biz: POST /orders/ORD-100234/cancel<br/>Idempotency-Key
-  Biz-->>G: 200 OK
-  G->>Client: "Your order has been cancelled."
-```
 
 ### Resilience
 
@@ -345,15 +248,7 @@ flowchart LR
 
 `POST /api/v1/knowledge/query` (admin) runs the same pipeline outside a conversation. It accepts the per-request switches `hybrid`, `hyde` and `rerank` and returns every intermediate step: rewritten query, candidates, contexts, chunks and latency. The RAG evals and ablations use it.
 
-### Output guardrail
-
-Incoming messages are screened by the `guardrail` node; outgoing LLM replies are checked by an output review ([output-review.ts](src/utils/output-review.ts)) before they are sent. A fast model (Haiku) gets the draft reply, the customer's message and the reference the reply was written from, and returns `pass`, `ungrounded` (a claim the reference does not support) or `policy_violation`. The policy forbids promising refunds, discounts or deadlines the reference does not offer, asking for passwords or card codes, revealing internals or other customers' data, links or contacts not in the reference, legal, medical or financial advice, and rude or off-topic content.
-
-- *Knowledge answers*: the reference is the chunks the answer cites. A rejected answer gets the status `rejected`, is not sent, and the conversation is handed over to a human (`reply_rejected`). `POST /knowledge/query` returns the verdict as `review`. Small talk is reviewed too, with no reference, so it must not state facts about the company. Turn it off with `KNOWLEDGE_OUTPUT_GUARDRAIL_ENABLED=false`.
-- *Action replies*: the reference is the action, its parameters and its result. The action has already run, so a rejected reply is replaced with the canned confirmation instead of being handed over. Turn it off with `INTENT_OUTPUT_GUARDRAIL_ENABLED=false`.
-
-The reviewer is told to flag only clear problems, so it costs one Haiku call per reply and rarely blocks good answers. The verdict and its reason are logged with PII placeholders.
-
+###
 ## Action extraction from API docs
 
 Admins attach an API document (PDF or DOCX) to a Resource. [src/doc-extraction](src/doc-extraction/) asks Claude (`DOC_EXTRACTION_MODEL`) to read it with structured output and drafts the action catalog from it: name, method, URL, auth type, confirmation flag and typed parameters.
